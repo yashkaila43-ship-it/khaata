@@ -101,6 +101,7 @@
     width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:9px; background:var(--paper);
     font-family:'Inter',sans-serif; font-size:14px; color:var(--ink); outline:none; transition:border-color .15s ease;
   }
+  .field input[type="date"]{ -webkit-min-logical-width:100%; min-width:0; max-width:100%; }
   .field textarea{resize:vertical; min-height:44px; font-family:'Inter',sans-serif;}
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--ink);}
   .amount-field{position:relative;}
@@ -160,7 +161,7 @@
   }
   .range-presets button.active{background:var(--ink); border-color:var(--ink); color:var(--paper);}
   .range-dates{display:flex; align-items:center; gap:8px;}
-  .range-dates input{padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; font-size:13px; font-family:'Inter',sans-serif; background:var(--paper);}
+  .range-dates input{padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; font-size:13px; font-family:'Inter',sans-serif; background:var(--paper); -webkit-min-logical-width:0; min-width:0; max-width:100%;}
   .range-dates span{color:var(--muted); font-size:12px;}
 
   .period-header{margin:6px 2px 20px;}
@@ -301,7 +302,7 @@
     .range-presets{justify-content:space-between; gap:5px;}
     .range-presets button{flex:1; padding:7px 2px; font-size:10.5px; white-space:nowrap;}
     .range-dates{width:100%;}
-    .range-dates input{flex:1; min-width:0; width:0; font-size:13px; padding:8px 6px;}
+    .range-dates input{flex:1; min-width:0; width:0; font-size:16px; padding:8px 6px; -webkit-min-logical-width:0;}
 
     .period-header{margin:4px 2px 16px;}
     .period-header h2{font-size:19px;}
@@ -360,7 +361,7 @@
   .login-field label{display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px; letter-spacing:.02em;}
   .login-field input{
     width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:9px; background:var(--paper);
-    font-family:'Inter',sans-serif; font-size:15px; color:var(--ink); outline:none; transition:border-color .15s ease;
+    font-family:'Inter',sans-serif; font-size:16px; color:var(--ink); outline:none; transition:border-color .15s ease;
   }
   .login-field input:focus{border-color:var(--ink);}
   .remember-row{display:flex; align-items:center; gap:8px; margin:4px 0 16px;}
@@ -406,7 +407,7 @@
   .catmgr-add{display:flex; gap:8px; padding:14px 22px; border-top:1px solid var(--line-soft);}
   .catmgr-add input{
     flex:1; min-width:0; padding:9px 11px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper);
-    font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink); outline:none;
+    font-family:'Inter',sans-serif; font-size:16px; color:var(--ink); outline:none;
   }
   .catmgr-add input:focus{border-color:var(--ink);}
   .catmgr-add button{
