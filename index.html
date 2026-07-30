@@ -431,7 +431,7 @@
     <form id="login-form">
       <div class="login-field">
         <label>Login ID</label>
-        <input type="text" id="login-id" placeholder="DD MM YYYY" autocomplete="off" required>
+        <input type="text" id="login-id" placeholder="DDMMYYYY" autocomplete="off" required>
       </div>
       <div class="login-field">
         <label>Password</label>
@@ -711,9 +711,9 @@
 
   async function loadExpenseCategories(){
     try{
-      const res = await window.storage.get(CATS_KEY, false);
-      if(res && res.value){
-        const parsed = JSON.parse(res.value);
+      const raw = localStorage.getItem(CATS_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
         if(Array.isArray(parsed) && parsed.length){ expenseCategories = parsed; return; }
       }
     }catch(e){ /* fall back to defaults */ }
@@ -721,7 +721,7 @@
     await saveExpenseCategories();
   }
   async function saveExpenseCategories(){
-    try{ await window.storage.set(CATS_KEY, JSON.stringify(expenseCategories), false); }
+    try{ localStorage.setItem(CATS_KEY, JSON.stringify(expenseCategories)); }
     catch(e){ console.error('Saving categories failed', e); }
   }
   function renderExpenseCategorySelect(preferredValue){
@@ -743,16 +743,16 @@
   // ---------- Storage ----------
   async function loadData(){
     try{
-      const res = await window.storage.get(STORAGE_KEY, false);
-      if(res && res.value){
-        DATA = JSON.parse(res.value);
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        DATA = JSON.parse(raw);
         DATA.income = DATA.income || [];
         DATA.expense = DATA.expense || [];
       }
     }catch(e){ DATA = {income:[], expense:[]}; }
   }
   async function saveData(){
-    try{ await window.storage.set(STORAGE_KEY, JSON.stringify(DATA), false); }
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA)); }
     catch(e){ console.error('Storage save failed', e); }
   }
 
@@ -804,6 +804,15 @@
       const remote = await res.json();
       DATA = { income: normalizeEntries(remote.income), expense: normalizeEntries(remote.expense) };
       await saveData();
+      if(Array.isArray(remote.categories) && remote.categories.length){
+        expenseCategories = remote.categories;
+        await saveExpenseCategories();
+        renderExpenseCategorySelect();
+      } else {
+        // Sheet has no "Categories" tab data yet (first run after this update) —
+        // seed it with whatever categories this device currently has.
+        pushToSheet();
+      }
       updateSyncDot('linked');
       setSyncLabel('Synced');
     }catch(err){
@@ -821,7 +830,7 @@
       const res = await fetch(SHEET_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(DATA)
+        body: JSON.stringify({ income: DATA.income, expense: DATA.expense, categories: expenseCategories })
       });
       if(!res.ok) throw new Error('Request failed: ' + res.status);
       await res.json();
@@ -1380,6 +1389,7 @@
     catmgrNewInput.value = '';
     showCatmgrMsg('');
     renderCatmgrList();
+    pushToSheet();
   }
 
   async function removeCategory(name){
@@ -1392,6 +1402,7 @@
     renderExpenseCategorySelect();
     showCatmgrMsg('');
     renderCatmgrList();
+    pushToSheet();
   }
 
   document.getElementById('manage-cat-btn').addEventListener('click', openCategoryManager);
@@ -1416,8 +1427,8 @@
 
   async function checkRememberedLogin(){
     try{
-      const res = await window.storage.get(AUTH_KEY, false);
-      if(res && res.value === 'true'){ showApp(); }
+      const val = localStorage.getItem(AUTH_KEY);
+      if(val === 'true'){ showApp(); }
     }catch(e){ /* not remembered, show login */ }
   }
 
@@ -1429,7 +1440,7 @@
     if(idDigits === LOGIN_ID && pass === LOGIN_PASSWORD){
       loginError.classList.remove('show');
       if(remember){
-        try{ await window.storage.set(AUTH_KEY, 'true', false); }catch(err){ /* ignore */ }
+        try{ localStorage.setItem(AUTH_KEY, 'true'); }catch(err){ /* ignore */ }
       }
       showApp();
     } else {
