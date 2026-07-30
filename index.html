@@ -101,7 +101,11 @@
     width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:9px; background:var(--paper);
     font-family:'Inter',sans-serif; font-size:14px; color:var(--ink); outline:none; transition:border-color .15s ease;
   }
-  .field input[type="date"]{ -webkit-min-logical-width:100%; min-width:0; max-width:100%; }
+  .field input[type="date"]{
+    -webkit-min-logical-width:100%; min-width:0; max-width:100%; box-sizing:border-box;
+    -webkit-appearance:none; appearance:none;
+    height:42px; line-height:20px; padding:10px 10px;
+  }
   .field textarea{resize:vertical; min-height:44px; font-family:'Inter',sans-serif;}
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--ink);}
   .amount-field{position:relative;}
@@ -161,7 +165,7 @@
   }
   .range-presets button.active{background:var(--ink); border-color:var(--ink); color:var(--paper);}
   .range-dates{display:flex; align-items:center; gap:8px;}
-  .range-dates input{padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; font-size:13px; font-family:'Inter',sans-serif; background:var(--paper); -webkit-min-logical-width:0; min-width:0; max-width:100%;}
+  .range-dates input{padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; font-size:13px; font-family:'Inter',sans-serif; background:var(--paper); -webkit-min-logical-width:0; min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; height:36px; line-height:18px;}
   .range-dates span{color:var(--muted); font-size:12px;}
 
   .period-header{margin:6px 2px 20px;}
