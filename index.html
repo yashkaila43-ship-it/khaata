@@ -341,10 +341,113 @@
     .stat-grid{grid-template-columns:1fr;}
     .range-presets button{font-size:10px; padding:6px 2px;}
   }
+
+  /* ---------- Login ---------- */
+  .app-hidden{display:none !important;}
+  .login-overlay{
+    position:fixed; inset:0; z-index:100; background:var(--paper);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .login-card{
+    width:100%; max-width:340px; background:var(--surface); border:1px solid var(--line);
+    border-radius:16px; box-shadow:0 20px 60px -12px rgba(33,31,27,0.25); padding:30px 26px;
+  }
+  .login-brand{display:flex; align-items:center; gap:12px; margin-bottom:22px;}
+  .login-brand .brand-mark{width:42px; height:42px; border-radius:10px; background:var(--ink); color:var(--paper); font-family:'Fraunces',serif; font-weight:600; font-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .login-brand h2{font-family:'Fraunces',serif; font-size:19px; font-weight:600; margin:0;}
+  .login-brand p{margin:1px 0 0; font-size:11.5px; color:var(--muted);}
+  .login-field{margin-bottom:14px;}
+  .login-field label{display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px; letter-spacing:.02em;}
+  .login-field input{
+    width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:9px; background:var(--paper);
+    font-family:'Inter',sans-serif; font-size:15px; color:var(--ink); outline:none; transition:border-color .15s ease;
+  }
+  .login-field input:focus{border-color:var(--ink);}
+  .remember-row{display:flex; align-items:center; gap:8px; margin:4px 0 16px;}
+  .remember-row input{width:15px; height:15px; accent-color:var(--ink); cursor:pointer;}
+  .remember-row label{font-size:13px; color:var(--ink-soft); cursor:pointer; user-select:none;}
+  .login-error{font-size:12.5px; color:var(--expense); margin:-4px 0 12px; display:none;}
+  .login-error.show{display:block;}
+  .login-submit{
+    width:100%; padding:12px; border:none; border-radius:10px; background:var(--ink); color:var(--paper);
+    font-family:'Inter Tight',sans-serif; font-weight:700; font-size:14.5px; cursor:pointer;
+  }
+  .login-submit:hover{opacity:.88;}
+
+  /* ---------- Category manager ---------- */
+  .pencil-btn{
+    background:none; border:1.5px solid var(--line); border-radius:6px; width:22px; height:22px;
+    display:inline-flex; align-items:center; justify-content:center; font-size:11.5px; color:var(--muted);
+    cursor:pointer; margin-left:7px; vertical-align:middle; padding:0; line-height:1;
+  }
+  .pencil-btn:hover{border-color:var(--ink); color:var(--ink);}
+  .catmgr-overlay{
+    position:fixed; inset:0; background:rgba(33,31,27,0.45); z-index:70;
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  .catmgr-overlay.show{display:flex;}
+  .catmgr-modal{
+    background:var(--surface); border-radius:16px; width:100%; max-width:400px;
+    max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px -12px rgba(33,31,27,0.35);
+  }
+  .catmgr-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:20px 22px 12px; border-bottom:1px solid var(--line-soft);}
+  .catmgr-head h3{font-family:'Fraunces',serif; font-size:17px; font-weight:600; margin:0;}
+  .catmgr-head .catmgr-sub{font-size:11.5px; color:var(--muted); margin-top:3px;}
+  .catmgr-close{background:none; border:none; font-size:20px; color:var(--muted); cursor:pointer; line-height:1; padding:2px 4px; flex-shrink:0;}
+  .catmgr-close:hover{color:var(--ink);}
+  .catmgr-list{overflow-y:auto; padding:6px 22px; flex:1;}
+  .catmgr-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line-soft);}
+  .catmgr-row:last-child{border-bottom:none;}
+  .catmgr-row .cname{font-size:13.5px; color:var(--ink); flex:1; min-width:0;}
+  .catmgr-row .ccount{font-size:11px; color:var(--muted); margin-right:4px; white-space:nowrap;}
+  .catmgr-row .cdel{background:none; border:none; color:var(--line); cursor:pointer; font-size:15px; padding:2px 4px; flex-shrink:0;}
+  .catmgr-row .cdel:hover:not(:disabled){color:var(--expense);}
+  .catmgr-row .cdel:disabled{color:var(--line-soft); cursor:not-allowed;}
+  .catmgr-add{display:flex; gap:8px; padding:14px 22px; border-top:1px solid var(--line-soft);}
+  .catmgr-add input{
+    flex:1; min-width:0; padding:9px 11px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper);
+    font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink); outline:none;
+  }
+  .catmgr-add input:focus{border-color:var(--ink);}
+  .catmgr-add button{
+    padding:9px 16px; border:none; border-radius:8px; background:var(--ink); color:var(--paper);
+    font-family:'Inter Tight',sans-serif; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap;
+  }
+  .catmgr-msg{font-size:11.5px; color:var(--expense); padding:0 22px 12px; display:none;}
+  .catmgr-msg.show{display:block;}
 </style>
 </head>
 <body>
-<div id="app">
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-mark">₹</div>
+      <div>
+        <h2>Khaata</h2>
+        <p>Sign in to your ledger</p>
+      </div>
+    </div>
+    <form id="login-form">
+      <div class="login-field">
+        <label>Login ID</label>
+        <input type="text" id="login-id" placeholder="DD MM YYYY" autocomplete="off" required>
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="Password" autocomplete="off" required>
+      </div>
+      <div class="remember-row">
+        <input type="checkbox" id="login-remember">
+        <label for="login-remember">Remember me on this device</label>
+      </div>
+      <div class="login-error" id="login-error">Incorrect login ID or password.</div>
+      <button type="submit" class="login-submit">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<div id="app" class="app-hidden">
 
   <div class="topbar">
     <div class="brand">
@@ -435,24 +538,8 @@
             </div>
           </div>
           <div class="field">
-            <label>Category</label>
-            <select id="exp-category">
-              <option>Food &amp; Dining</option>
-              <option>Groceries</option>
-              <option>Transport &amp; Fuel</option>
-              <option>Shopping</option>
-              <option>Bills &amp; Utilities</option>
-              <option>Rent &amp; Housing</option>
-              <option>Entertainment</option>
-              <option>Health &amp; Medical</option>
-              <option>Education</option>
-              <option>Travel</option>
-              <option>Subscriptions</option>
-              <option>Personal Care</option>
-              <option>Gifts &amp; Donations</option>
-              <option>Cash Withdrawal</option>
-              <option>Other</option>
-            </select>
+            <label>Category <button type="button" class="pencil-btn" id="manage-cat-btn" title="Add or remove categories">✎</button></label>
+            <select id="exp-category"></select>
           </div>
           <div class="field">
             <label>Paid via</label>
@@ -587,6 +674,24 @@
   </div>
 </div>
 
+<div class="catmgr-overlay" id="catmgr-overlay">
+  <div class="catmgr-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>Expense categories</h3>
+        <div class="catmgr-sub">Categories with existing entries can't be removed.</div>
+      </div>
+      <button class="catmgr-close" id="catmgr-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="catmgr-list"></div>
+    <div class="catmgr-msg" id="catmgr-msg"></div>
+    <div class="catmgr-add">
+      <input type="text" id="catmgr-new-input" placeholder="New category name">
+      <button type="button" id="catmgr-add-btn">Add</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const STORAGE_KEY = 'khaata-data';
@@ -594,6 +699,37 @@
 
   const CAT_COLORS_INCOME = ['#3D6B4F','#6E9A7B','#95B49E','#B9CBBB','#DCE7DD','#2F4858'];
   const CAT_COLORS_EXPENSE = ['#B4432F','#C97256','#DA9A7F','#E8BBA8','#B4832A','#D1AA5F','#8A5A3B','#A3735A','#6E5847','#9C5B4A','#C48B7A','#7D4E42','#5F473A','#4A3A30'];
+
+  // ---------- Expense categories (editable via pencil icon) ----------
+  const CATS_KEY = 'khaata-expense-categories';
+  const DEFAULT_EXPENSE_CATEGORIES = [
+    'Food & Dining','Groceries','Transport & Fuel','Shopping','Bills & Utilities',
+    'Rent & Housing','Entertainment','Health & Medical','Education','Travel',
+    'Subscriptions','Personal Care','Gifts & Donations','Cash Withdrawal','Other'
+  ];
+  let expenseCategories = DEFAULT_EXPENSE_CATEGORIES.slice();
+
+  async function loadExpenseCategories(){
+    try{
+      const res = await window.storage.get(CATS_KEY, false);
+      if(res && res.value){
+        const parsed = JSON.parse(res.value);
+        if(Array.isArray(parsed) && parsed.length){ expenseCategories = parsed; return; }
+      }
+    }catch(e){ /* fall back to defaults */ }
+    expenseCategories = DEFAULT_EXPENSE_CATEGORIES.slice();
+    await saveExpenseCategories();
+  }
+  async function saveExpenseCategories(){
+    try{ await window.storage.set(CATS_KEY, JSON.stringify(expenseCategories), false); }
+    catch(e){ console.error('Saving categories failed', e); }
+  }
+  function renderExpenseCategorySelect(preferredValue){
+    const sel = document.getElementById('exp-category');
+    const current = preferredValue || sel.value;
+    sel.innerHTML = expenseCategories.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+    if(current && expenseCategories.includes(current)) sel.value = current;
+  }
 
   const fmtINR = (n) => new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', maximumFractionDigits:0}).format(n || 0);
   const fmtDate = (iso) => { const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}); };
@@ -1190,15 +1326,131 @@
   document.getElementById('drill-close-btn').addEventListener('click', ()=> drillOverlay.classList.remove('show'));
   drillOverlay.addEventListener('click', (e)=>{ if(e.target === drillOverlay) drillOverlay.classList.remove('show'); });
 
+  // ---------- Category manager ----------
+  const catmgrOverlay = document.getElementById('catmgr-overlay');
+  const catmgrList = document.getElementById('catmgr-list');
+  const catmgrMsg = document.getElementById('catmgr-msg');
+  const catmgrNewInput = document.getElementById('catmgr-new-input');
+
+  function categoryEntryCount(name){
+    return DATA.expense.filter(e => e.category === name).length;
+  }
+
+  function showCatmgrMsg(text){
+    catmgrMsg.textContent = text;
+    catmgrMsg.classList.toggle('show', !!text);
+  }
+
+  function renderCatmgrList(){
+    if(expenseCategories.length === 0){
+      catmgrList.innerHTML = '<div class="drill-empty">No categories yet.</div>';
+      return;
+    }
+    catmgrList.innerHTML = expenseCategories.map(cat=>{
+      const count = categoryEntryCount(cat);
+      const disabled = count > 0 ? 'disabled' : '';
+      const title = count > 0 ? `In use by ${count} ${count===1?'entry':'entries'} — can't remove` : 'Remove category';
+      return `<div class="catmgr-row">
+        <span class="cname">${escapeHtml(cat)}</span>
+        <span class="ccount">${count} ${count===1?'entry':'entries'}</span>
+        <button class="cdel" data-cat="${escapeHtml(cat)}" ${disabled} title="${title}">×</button>
+      </div>`;
+    }).join('');
+    catmgrList.querySelectorAll('.cdel').forEach(btn=>{
+      btn.addEventListener('click', ()=> removeCategory(btn.dataset.cat));
+    });
+  }
+
+  function openCategoryManager(){
+    showCatmgrMsg('');
+    catmgrNewInput.value = '';
+    renderCatmgrList();
+    catmgrOverlay.classList.add('show');
+  }
+  function closeCategoryManager(){ catmgrOverlay.classList.remove('show'); }
+
+  async function addCategory(){
+    const name = catmgrNewInput.value.trim();
+    if(!name){ showCatmgrMsg('Enter a category name.'); return; }
+    const exists = expenseCategories.some(c => c.toLowerCase() === name.toLowerCase());
+    if(exists){ showCatmgrMsg('That category already exists.'); return; }
+    expenseCategories.push(name);
+    await saveExpenseCategories();
+    renderExpenseCategorySelect(name);
+    catmgrNewInput.value = '';
+    showCatmgrMsg('');
+    renderCatmgrList();
+  }
+
+  async function removeCategory(name){
+    if(categoryEntryCount(name) > 0){
+      showCatmgrMsg(`Can't remove "${name}" — it has existing entries.`);
+      return;
+    }
+    expenseCategories = expenseCategories.filter(c => c !== name);
+    await saveExpenseCategories();
+    renderExpenseCategorySelect();
+    showCatmgrMsg('');
+    renderCatmgrList();
+  }
+
+  document.getElementById('manage-cat-btn').addEventListener('click', openCategoryManager);
+  document.getElementById('catmgr-close-btn').addEventListener('click', closeCategoryManager);
+  document.getElementById('catmgr-add-btn').addEventListener('click', addCategory);
+  catmgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addCategory(); } });
+  catmgrOverlay.addEventListener('click', (e)=>{ if(e.target === catmgrOverlay) closeCategoryManager(); });
+
+  // ---------- Login ----------
+  const AUTH_KEY = 'khaata-remember-auth';
+  const LOGIN_ID = '21122003';   // 21 12 2003, digits only
+  const LOGIN_PASSWORD = 'yash';
+  const loginOverlay = document.getElementById('login-overlay');
+  const appRoot = document.getElementById('app');
+  const loginForm = document.getElementById('login-form');
+  const loginError = document.getElementById('login-error');
+
+  function showApp(){
+    loginOverlay.classList.add('app-hidden');
+    appRoot.classList.remove('app-hidden');
+  }
+
+  async function checkRememberedLogin(){
+    try{
+      const res = await window.storage.get(AUTH_KEY, false);
+      if(res && res.value === 'true'){ showApp(); }
+    }catch(e){ /* not remembered, show login */ }
+  }
+
+  loginForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const idDigits = document.getElementById('login-id').value.replace(/\D/g,'');
+    const pass = document.getElementById('login-pass').value.trim().toLowerCase();
+    const remember = document.getElementById('login-remember').checked;
+    if(idDigits === LOGIN_ID && pass === LOGIN_PASSWORD){
+      loginError.classList.remove('show');
+      if(remember){
+        try{ await window.storage.set(AUTH_KEY, 'true', false); }catch(err){ /* ignore */ }
+      }
+      showApp();
+    } else {
+      loginError.classList.add('show');
+    }
+  });
+
   // ---------- Init ----------
   (async function init(){
     await loadData();
+    await loadExpenseCategories();
+    renderExpenseCategorySelect();
     renderFeed();
     setPreset('month');
     await pullFromSheet();
+    renderExpenseCategorySelect();
     renderFeed();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
   })();
+
+  checkRememberedLogin();
 
 })();
 </script>
