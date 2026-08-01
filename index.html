@@ -251,6 +251,13 @@
   .gap-pill.gap-late .dot2{background:var(--expense);}
   .gap-pill.gap-none{background:var(--line-soft); color:var(--muted);}
 
+  table.record-table th:nth-child(2), table.record-table td:nth-child(2){text-align:left;}
+  table.record-table th:nth-child(3), table.record-table td:nth-child(3){text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;}
+  table.record-table th:last-child, table.record-table td:last-child{text-align:right;}
+  .status-pill{display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; white-space:nowrap;}
+  .status-pill.counted{background:var(--income-soft); color:var(--income);}
+  .status-pill.record-only{background:var(--line-soft); color:var(--muted);}
+
   .overview-card{padding:22px; margin-bottom:20px;}
   .overview-card p{font-size:14px; line-height:1.75; color:var(--ink-soft); margin:0 0 10px;}
   .overview-card p:last-child{margin-bottom:0;}
@@ -516,6 +523,15 @@
               <option>Other Income</option>
             </select>
           </div>
+          <div class="field" id="inc-other-person-field" style="display:none;">
+            <label>Other income — whose turn</label>
+            <input type="text" id="inc-other-person" list="other-income-people-list" placeholder="Search a name…" autocomplete="off">
+            <datalist id="other-income-people-list">
+              <option value="Jayantilal Kaila">
+              <option value="Ishwarlal Kaila">
+              <option value="Ansoya Kaila">
+            </datalist>
+          </div>
           <div class="field">
             <label>Amount</label>
             <div class="amount-field">
@@ -684,6 +700,12 @@
       <table class="gap-table" id="table-income-gap"><thead><tr><th>Category</th><th>Last received</th><th>Gap</th></tr></thead><tbody></tbody></table>
     </div>
 
+    <div class="card gap-card">
+      <div class="section-title">Other Income — full record</div>
+      <div class="gap-sub">Every Other Income entry for this period, including relatives — for tracking purposes only. Only Jayantilal Kaila's entries count toward your income totals above.</div>
+      <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Person</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table>
+    </div>
+
     <div class="card overview-card">
       <div class="section-title">Detailed overview</div>
       <p id="overview-text">Add some entries to see a detailed breakdown of this period.</p>
@@ -771,6 +793,30 @@
   const localISODate = (d) => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   const todayISO = () => localISODate(new Date());
   const uid = () => 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+  // ---------- Other Income turn tracker ----------
+  // Jayantilal Kaila is "Dad" — his Other Income entries are the user's own income.
+  // Ishwarlal Kaila and Ansoya Kaila are relatives; their entries under Other Income
+  // are logged only for record-keeping and are excluded from all dashboard totals.
+  const OTHER_INCOME_TURN = ['Jayantilal Kaila', 'Ishwarlal Kaila', 'Ansoya Kaila'];
+  const OTHER_INCOME_OWNER = 'Jayantilal Kaila';
+
+  function nextOtherIncomeTurn(){
+    const entries = DATA.income.filter(e => e.category === 'Other Income' && e.otherPerson);
+    if(entries.length === 0) return OTHER_INCOME_TURN[0];
+    const lastPerson = entries[entries.length - 1].otherPerson;
+    const idx = OTHER_INCOME_TURN.indexOf(lastPerson);
+    if(idx === -1) return OTHER_INCOME_TURN[0];
+    return OTHER_INCOME_TURN[(idx + 1) % OTHER_INCOME_TURN.length];
+  }
+
+  // Entries that count toward the user's actual income figures. Other Income entries
+  // attributed to a relative (anyone but Jayantilal Kaila) are tracked but excluded here.
+  function isCountableIncome(e){
+    if(e.category === 'Other Income' && e.otherPerson && e.otherPerson !== OTHER_INCOME_OWNER) return false;
+    return true;
+  }
+
 
   // ---------- Storage ----------
   async function loadData(){
@@ -918,6 +964,19 @@
     incPersonManual.classList.toggle('show', incPerson.value === 'Other');
   });
 
+  // ---------- Other Income turn field ----------
+  const incCategory = document.getElementById('inc-category');
+  const incOtherPersonField = document.getElementById('inc-other-person-field');
+  const incOtherPerson = document.getElementById('inc-other-person');
+  function syncOtherPersonField(){
+    const show = incCategory.value === 'Other Income';
+    incOtherPersonField.style.display = show ? '' : 'none';
+    if(show) incOtherPerson.value = nextOtherIncomeTurn();
+    else incOtherPerson.value = '';
+  }
+  incCategory.addEventListener('change', syncOtherPersonField);
+  syncOtherPersonField();
+
   // default dates to today
   document.getElementById('inc-date').value = todayISO();
   document.getElementById('exp-date').value = todayISO();
@@ -926,21 +985,26 @@
   document.getElementById('income-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const person = incPerson.value === 'Other' ? (document.getElementById('inc-person-other').value.trim() || 'Other') : incPerson.value;
+    const category = document.getElementById('inc-category').value;
     const entry = {
       id: uid(),
       date: document.getElementById('inc-date').value,
-      category: document.getElementById('inc-category').value,
+      category,
       amount: parseFloat(document.getElementById('inc-amount').value) || 0,
       mode: segVal('inc-mode'),
       person,
       note: document.getElementById('inc-note').value.trim()
     };
+    if(category === 'Other Income'){
+      entry.otherPerson = incOtherPerson.value.trim() || nextOtherIncomeTurn();
+    }
     if(entry.amount <= 0) return;
     DATA.income.push(entry);
     await saveData();
     e.target.reset();
     document.getElementById('inc-date').value = todayISO();
     incPersonManual.classList.remove('show');
+    syncOtherPersonField();
     document.querySelector('#inc-mode button[data-val="Bank"]').click();
     flashMsg('inc-msg');
     renderFeed();
@@ -1160,9 +1224,12 @@
     const tbody = document.querySelector('#table-income-gap tbody');
     if(!tbody) return;
 
-    // one row per income category that has at least one entry ever logged —
-    // categories with zero entries are skipped entirely.
-    const cats = new Set(DATA.income.map(e=> e.category));
+    // one row per income category that has at least one countable entry ever logged —
+    // categories with zero entries are skipped entirely. Other Income entries logged
+    // for relatives (not Jayantilal Kaila) don't count here — see the separate
+    // "Other Income — full record" table for those.
+    const countableIncome = DATA.income.filter(isCountableIncome);
+    const cats = new Set(countableIncome.map(e=> e.category));
 
     if(cats.size === 0){
       tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted); padding:14px 0;">No income entries yet</td></tr>';
@@ -1171,7 +1238,7 @@
 
     const today = new Date(todayISO()+'T00:00:00');
     const rows = Array.from(cats).map(cat=>{
-      const entries = DATA.income.filter(e=> e.category === cat);
+      const entries = countableIncome.filter(e=> e.category === cat);
       const lastDate = entries.reduce((latest,e)=> e.date > latest ? e.date : latest, entries[0].date);
       const gap = Math.round((today - new Date(lastDate+'T00:00:00')) / 86400000);
       return { cat, lastDate, gap };
@@ -1186,6 +1253,30 @@
       else if(r.gap >= 20) pillClass = 'gap-warn';
       else pillClass = 'gap-fresh';
       return `<tr><td>${escapeHtml(r.cat)}</td><td class="gap-last">${fmtDate(r.lastDate)}</td><td><span class="gap-pill ${pillClass}"><span class="dot2"></span>${dayLabel}</span></td></tr>`;
+    }).join('');
+  }
+
+  function renderOtherIncomeRecordTable(from, to){
+    const tbody = document.querySelector('#table-other-income-record tbody');
+    if(!tbody) return;
+
+    const entries = DATA.income
+      .filter(e=> e.category === 'Other Income' && inRange(e.date, from, to))
+      .slice()
+      .sort((a,b)=> b.date.localeCompare(a.date));
+
+    if(entries.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted); padding:14px 0;">No Other Income entries in this period</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = entries.map(e=>{
+      const person = e.otherPerson || '—';
+      const counted = isCountableIncome(e);
+      const statusHtml = counted
+        ? '<span class="status-pill counted">Counted</span>'
+        : '<span class="status-pill record-only">Record only</span>';
+      return `<tr><td>${escapeHtml(person)}</td><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td>${statusHtml}</td></tr>`;
     }).join('');
   }
 
@@ -1230,7 +1321,7 @@
     let from = rangeFrom.value, to = rangeTo.value;
     if(from > to){ [from, to] = [to, from]; }
 
-    const incEntries = DATA.income.filter(e=>inRange(e.date, from, to));
+    const incEntries = DATA.income.filter(e=>inRange(e.date, from, to) && isCountableIncome(e));
     const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to));
 
     const totalIncome = incEntries.reduce((s,e)=>s+e.amount,0);
@@ -1303,6 +1394,7 @@
     renderCatTable('table-income', catTotalsInc, totalIncome, 'income');
     renderCatTable('table-expense', catTotalsExp, totalExpense, 'expense');
     renderIncomeGapTable();
+    renderOtherIncomeRecordTable(from, to);
 
     // trend
     const dates = buildDateList(from, to);
