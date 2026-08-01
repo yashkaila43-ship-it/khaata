@@ -1819,8 +1819,16 @@
   const pendingOverlay = document.getElementById('pending-overlay');
   const pendingList = document.getElementById('pending-list');
 
+  // An entry counts as "pending" whenever it's Jayantilal Kaila's Other Income and
+  // either the receipt mode (Bank/Cash) or the "with whom" person is still blank —
+  // computed fresh from the actual data every time, so it can't go stale or disappear
+  // after a refresh / on another device the way a separately-synced flag could.
   function getPendingEntries(){
-    return DATA.income.filter(e => e.category === 'Other Income' && e.otherPerson === OTHER_INCOME_OWNER && e.pending === true);
+    return DATA.income.filter(e =>
+      e.category === 'Other Income' &&
+      e.otherPerson === OTHER_INCOME_OWNER &&
+      (!e.mode || !e.person)
+    );
   }
 
   function renderPendingAlert(){
