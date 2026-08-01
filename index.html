@@ -1053,7 +1053,13 @@
   }
   incCategory.addEventListener('change', syncOtherPersonField);
   incOtherPerson.addEventListener('input', ()=>{ resetReceivedTiming(); syncOtherIncomeFieldsVisibility(); });
-  document.querySelectorAll('#inc-received-timing button').forEach(b=> b.addEventListener('click', syncOtherIncomeFieldsVisibility));
+  document.querySelectorAll('#inc-received-timing button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('#inc-received-timing button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      syncOtherIncomeFieldsVisibility();
+    });
+  });
   syncOtherPersonField();
 
   // default dates to today
