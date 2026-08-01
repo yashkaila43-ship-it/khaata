@@ -105,6 +105,7 @@
     -webkit-min-logical-width:100%; min-width:0; max-width:100%; box-sizing:border-box;
     -webkit-appearance:none; appearance:none;
     height:42px; line-height:20px; padding:10px 10px;
+    color:var(--ink); color-scheme:light;
   }
   .field textarea{resize:vertical; min-height:44px; font-family:'Inter',sans-serif;}
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--ink);}
@@ -176,7 +177,7 @@
   }
   .range-presets button.active{background:var(--ink); border-color:var(--ink); color:var(--paper);}
   .range-dates{display:flex; align-items:center; gap:8px;}
-  .range-dates input{padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; font-size:13px; font-family:'Inter',sans-serif; background:var(--paper); -webkit-min-logical-width:0; min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; height:36px; line-height:18px;}
+  .range-dates input{padding:8px 10px; border:1.5px solid var(--line); border-radius:8px; font-size:13px; font-family:'Inter',sans-serif; background:var(--paper); -webkit-min-logical-width:0; min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; height:36px; line-height:18px; color:var(--ink); color-scheme:light;}
   .range-dates span{color:var(--muted); font-size:12px;}
 
   .period-header{margin:6px 2px 20px;}
@@ -246,6 +247,9 @@
   .gap-card{padding:20px; margin-bottom:20px;}
   .gap-card .section-title{margin-bottom:4px;}
   .gap-sub{font-size:12px; color:var(--muted); margin-bottom:14px;}
+  .gap-overall{display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:13px; color:var(--ink-soft); margin:-4px 0 14px;}
+  .gap-overall .gap-overall-label{color:var(--muted);}
+  .gap-overall .gap-overall-date{font-family:'Inter Tight',sans-serif; font-weight:600; color:var(--ink);}
   table.gap-table{width:100%; border-collapse:collapse;}
   table.gap-table th{text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding-bottom:8px; border-bottom:1.5px solid var(--line);}
   table.gap-table th:nth-child(2), table.gap-table td:nth-child(2){text-align:right;}
@@ -263,9 +267,15 @@
   .gap-pill.gap-late .dot2{background:var(--expense);}
   .gap-pill.gap-none{background:var(--line-soft); color:var(--muted);}
 
-  table.record-table th:nth-child(2), table.record-table td:nth-child(2){text-align:left;}
-  table.record-table th:nth-child(3), table.record-table td:nth-child(3){text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;}
-  table.record-table th:last-child, table.record-table td:last-child{text-align:right;}
+  /* Other Income record table: Person, Date, Amount */
+  #table-other-income-record th:nth-child(2), #table-other-income-record td:nth-child(2){text-align:left;}
+  #table-other-income-record th:nth-child(3), #table-other-income-record td:nth-child(3){
+    text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
+  }
+  /* Salary record table: Date, Amount, With whom */
+  #table-salary-record th:nth-child(2), #table-salary-record td:nth-child(2){
+    text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
+  }
 
   .overview-card{padding:22px; margin-bottom:20px;}
   .overview-card p{font-size:14px; line-height:1.75; color:var(--ink-soft); margin:0 0 10px;}
@@ -771,14 +781,16 @@
 
     <div class="card gap-card">
       <div class="section-title">Other Income — full record</div>
-      <div class="gap-sub">Every Other Income entry, all people — always shown in full, regardless of the "Whose dashboard" filter above. Only Jayantilal Kaila's counts toward your income totals above. "Last received" and "Gap" show the time since that same person's previous turn.</div>
-      <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Person</th><th>Date</th><th>Amount</th><th>Last received</th><th>Gap</th></tr></thead><tbody></tbody></table>
+      <div class="gap-sub">Every Other Income entry, all people — always shown in full, regardless of the "Whose dashboard" filter above. Only Jayantilal Kaila's settled entries count toward your income totals above.</div>
+      <div class="gap-overall" id="other-income-overall"></div>
+      <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Person</th><th>Date</th><th>Amount</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card gap-card">
       <div class="section-title">Salary — full record</div>
-      <div class="gap-sub">Every Salary entry — always shown in full, regardless of the "Whose dashboard" filter above. "Last received" and "Gap" show the time since the previous Salary entry.</div>
-      <table class="gap-table record-table" id="table-salary-record"><thead><tr><th>Date</th><th>Amount</th><th>With whom</th><th>Last received</th><th>Gap</th></tr></thead><tbody></tbody></table>
+      <div class="gap-sub">Every Salary entry — always shown in full, regardless of the "Whose dashboard" filter above.</div>
+      <div class="gap-overall" id="salary-overall"></div>
+      <table class="gap-table record-table" id="table-salary-record"><thead><tr><th>Date</th><th>Amount</th><th>With whom</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card overview-card">
@@ -900,8 +912,12 @@
 
   // Entries that count toward the user's actual income figures. Other Income entries
   // attributed to a relative (anyone but Jayantilal Kaila) are tracked but excluded here.
+  // Other Income entries marked "receive later" that haven't actually been received yet
+  // (no receipt mode / no "with whom" person filled in) are excluded too — they aren't
+  // real income until they're settled.
   function isCountableIncome(e){
     if(e.category === 'Other Income' && e.otherPerson && e.otherPerson !== OTHER_INCOME_OWNER) return false;
+    if(e.category === 'Other Income' && e.otherPerson === OTHER_INCOME_OWNER && (!e.mode || !e.person)) return false;
     return true;
   }
 
@@ -1436,46 +1452,48 @@
     }).join('');
   }
 
+  // Renders one "last received / gap" summary line for a set of entries, covering
+  // the full all-time history (independent of the selected date range).
+  function renderOverallGap(elId, allEntriesSortedAsc){
+    const el = document.getElementById(elId);
+    if(!el) return;
+    if(allEntriesSortedAsc.length === 0){
+      el.innerHTML = '<span class="gap-overall-label">No entries yet</span>';
+      return;
+    }
+    const lastDate = allEntriesSortedAsc[allEntriesSortedAsc.length - 1].date;
+    const today = new Date(todayISO()+'T00:00:00');
+    const gap = Math.round((today - new Date(lastDate+'T00:00:00')) / 86400000);
+    const pillClass = gap > 30 ? 'gap-late' : (gap >= 20 ? 'gap-warn' : 'gap-fresh');
+    const label = gap === 1 ? '1 day' : gap + ' days';
+    el.innerHTML = `<span class="gap-overall-label">Last received</span><span class="gap-overall-date">${fmtDate(lastDate)}</span>`
+      + `<span class="gap-overall-label">·</span><span class="gap-overall-label">Gap</span>`
+      + `<span class="gap-pill ${pillClass}"><span class="dot2"></span>${label}</span>`;
+  }
+
   function renderOtherIncomeRecordTable(from, to){
     const tbody = document.querySelector('#table-other-income-record tbody');
     if(!tbody) return;
 
-    // walk every Other Income entry ever, oldest first, tracking each person's
-    // previous turn so we can show the gap since THEIR last entry (not today).
     const allOther = DATA.income
       .filter(e=> e.category === 'Other Income')
       .slice()
       .sort((a,b)=> a.date.localeCompare(b.date));
 
-    const priorDateByPerson = {};
-    const withGap = allOther.map(e=>{
-      const person = e.otherPerson || '—';
-      const priorDate = priorDateByPerson[person] || null;
-      const gapDays = priorDate ? Math.round((new Date(e.date+'T00:00:00') - new Date(priorDate+'T00:00:00')) / 86400000) : null;
-      priorDateByPerson[person] = e.date;
-      return { ...e, person, priorDate, gapDays };
-    });
+    renderOverallGap('other-income-overall', allOther);
 
-    const entries = withGap
+    const entries = allOther
       .filter(e=> inRange(e.date, from, to))
       .sort((a,b)=> b.date.localeCompare(a.date));
 
     if(entries.length === 0){
-      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted); padding:14px 0;">No Other Income entries in this period</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted); padding:14px 0;">No Other Income entries in this period</td></tr>';
       return;
     }
 
     tbody.innerHTML = entries.map(e=>{
-      const lastReceivedHtml = e.priorDate ? fmtDate(e.priorDate) : '<span style="color:var(--muted);">First entry</span>';
-      let gapHtml;
-      if(e.gapDays === null){
-        gapHtml = '<span class="gap-pill gap-none"><span class="dot2"></span>—</span>';
-      } else {
-        const pillClass = e.gapDays > 30 ? 'gap-late' : (e.gapDays >= 20 ? 'gap-warn' : 'gap-fresh');
-        const label = e.gapDays === 1 ? '1 day' : e.gapDays + ' days';
-        gapHtml = `<span class="gap-pill ${pillClass}"><span class="dot2"></span>${label}</span>`;
-      }
-      return `<tr><td>${escapeHtml(e.person)}</td><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td class="gap-last">${lastReceivedHtml}</td><td>${gapHtml}</td></tr>`;
+      const person = e.otherPerson || '—';
+      return `<tr><td>${escapeHtml(person)}</td><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td></tr>`;
     }).join('');
   }
 
@@ -1484,42 +1502,26 @@
     if(!tbody) return;
 
     // Always the full Salary history — deliberately ignores dashboardPersonFilter,
-    // same as the Other Income record table. Gap here is simply the time since the
-    // previous Salary entry (no per-person rotation, unlike Other Income).
+    // same as the Other Income record table.
     const allSalary = DATA.income
       .filter(e=> e.category === 'Salary')
       .slice()
       .sort((a,b)=> a.date.localeCompare(b.date));
 
-    let priorDate = null;
-    const withGap = allSalary.map(e=>{
-      const gapDays = priorDate ? Math.round((new Date(e.date+'T00:00:00') - new Date(priorDate+'T00:00:00')) / 86400000) : null;
-      const row = { ...e, priorDate, gapDays };
-      priorDate = e.date;
-      return row;
-    });
+    renderOverallGap('salary-overall', allSalary);
 
-    const entries = withGap
+    const entries = allSalary
       .filter(e=> inRange(e.date, from, to))
       .sort((a,b)=> b.date.localeCompare(a.date));
 
     if(entries.length === 0){
-      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted); padding:14px 0;">No Salary entries in this period</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted); padding:14px 0;">No Salary entries in this period</td></tr>';
       return;
     }
 
     tbody.innerHTML = entries.map(e=>{
       const whom = [e.mode, e.person].filter(Boolean).join(' · ') || '—';
-      const lastReceivedHtml = e.priorDate ? fmtDate(e.priorDate) : '<span style="color:var(--muted);">First entry</span>';
-      let gapHtml;
-      if(e.gapDays === null){
-        gapHtml = '<span class="gap-pill gap-none"><span class="dot2"></span>—</span>';
-      } else {
-        const pillClass = e.gapDays > 30 ? 'gap-late' : (e.gapDays >= 20 ? 'gap-warn' : 'gap-fresh');
-        const label = e.gapDays === 1 ? '1 day' : e.gapDays + ' days';
-        gapHtml = `<span class="gap-pill ${pillClass}"><span class="dot2"></span>${label}</span>`;
-      }
-      return `<tr><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td>${escapeHtml(whom)}</td><td class="gap-last">${lastReceivedHtml}</td><td>${gapHtml}</td></tr>`;
+      return `<tr><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td>${escapeHtml(whom)}</td></tr>`;
     }).join('');
   }
 
