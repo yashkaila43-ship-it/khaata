@@ -158,6 +158,17 @@
     background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
     padding:16px 20px; margin-bottom:20px;
   }
+  .person-filter-bar{
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    padding:14px 20px; margin-bottom:14px;
+  }
+  .person-filter-other-input{
+    padding:7px 12px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper);
+    font-family:'Inter',sans-serif; font-size:12.5px; color:var(--ink); outline:none; min-width:150px;
+  }
+  .person-filter-other-input:focus{border-color:var(--ink);}
+  @media (max-width:600px){ .person-filter-bar{flex-direction:column; align-items:stretch;} }
+
   .range-presets{display:flex; gap:6px; flex-wrap:wrap;}
   .range-presets button{
     padding:7px 13px; border-radius:8px; border:1.5px solid var(--line); background:var(--paper);
@@ -617,6 +628,18 @@
             </div>
           </div>
           <div class="field">
+            <label>By whom</label>
+            <select id="exp-person">
+              <option>Yash</option>
+              <option>Dad</option>
+              <option>Mom</option>
+              <option value="Other">Other (specify)</option>
+            </select>
+            <div class="person-manual" id="exp-person-manual">
+              <input type="text" id="exp-person-other" placeholder="Enter name">
+            </div>
+          </div>
+          <div class="field">
             <label>Description</label>
             <textarea id="exp-desc" placeholder="What was this for?" required></textarea>
           </div>
@@ -640,6 +663,18 @@
 
   <!-- ============ DASHBOARD VIEW ============ -->
   <div class="view" id="view-dashboard">
+
+    <div class="card person-filter-bar" id="person-filter-bar">
+      <div class="eyebrow">Whose dashboard</div>
+      <div class="range-presets" id="person-filter-options">
+        <button data-person="all" class="active">All</button>
+        <button data-person="Yash">Yash</button>
+        <button data-person="Dad">Dad</button>
+        <button data-person="Mom">Mom</button>
+        <button data-person="Other">Other</button>
+      </div>
+      <input type="text" id="person-filter-other-input" class="person-filter-other-input" placeholder="Enter name" style="display:none;">
+    </div>
 
     <div class="range-bar">
       <div class="range-presets" id="range-presets">
@@ -736,8 +771,14 @@
 
     <div class="card gap-card">
       <div class="section-title">Other Income — full record</div>
-      <div class="gap-sub">Every Other Income entry, all people, for tracking purposes — only Jayantilal Kaila's counts toward your income totals above. "Last received" and "Gap" show the time since that same person's previous turn.</div>
+      <div class="gap-sub">Every Other Income entry, all people — always shown in full, regardless of the "Whose dashboard" filter above. Only Jayantilal Kaila's counts toward your income totals above. "Last received" and "Gap" show the time since that same person's previous turn.</div>
       <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Person</th><th>Date</th><th>Amount</th><th>Last received</th><th>Gap</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card gap-card">
+      <div class="section-title">Salary — full record</div>
+      <div class="gap-sub">Every Salary entry — always shown in full, regardless of the "Whose dashboard" filter above. "Last received" and "Gap" show the time since the previous Salary entry.</div>
+      <table class="gap-table record-table" id="table-salary-record"><thead><tr><th>Date</th><th>Amount</th><th>With whom</th><th>Last received</th><th>Gap</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card overview-card">
@@ -1011,6 +1052,12 @@
     incPersonManual.classList.toggle('show', incPerson.value === 'Other');
   });
 
+  const expPerson = document.getElementById('exp-person');
+  const expPersonManual = document.getElementById('exp-person-manual');
+  expPerson.addEventListener('change', ()=>{
+    expPersonManual.classList.toggle('show', expPerson.value === 'Other');
+  });
+
   // ---------- Other Income turn field + conditional mode/whom + receipt status ----------
   const incCategory = document.getElementById('inc-category');
   const incOtherPersonField = document.getElementById('inc-other-person-field');
@@ -1113,6 +1160,7 @@
       amount: parseFloat(document.getElementById('exp-amount').value) || 0,
       category: document.getElementById('exp-category').value,
       mode: segVal('exp-mode'),
+      person: expPerson.value === 'Other' ? (document.getElementById('exp-person-other').value.trim() || 'Other') : expPerson.value,
       desc: document.getElementById('exp-desc').value.trim()
     };
     if(entry.amount <= 0) return;
@@ -1120,9 +1168,11 @@
     await saveData();
     e.target.reset();
     document.getElementById('exp-date').value = todayISO();
+    expPersonManual.classList.remove('show');
     document.querySelector('#exp-mode button[data-val="Bank"]').click();
     flashMsg('exp-msg');
     renderFeed();
+    if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
 
@@ -1174,7 +1224,7 @@
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag dr">DR</span>${item.category}</div>
-            <div class="meta">${item.mode}${item.desc? ' · '+escapeHtml(item.desc):''}</div>
+            <div class="meta">${item.mode}${item.person? ' · '+escapeHtml(item.person):''}${item.desc? ' · '+escapeHtml(item.desc):''}</div>
           </div>
           <div class="feed-amt dr">−${fmtINR(item.amount)}</div>
           <button class="feed-del" data-type="expense" data-id="${item.id}" title="Delete">×</button>
@@ -1251,6 +1301,42 @@
     renderDashboard();
   });
 
+  // ---------- Dashboard: "whose dashboard" person filter ----------
+  // 'all' = no filter (today's default behaviour, unchanged for everyone).
+  // Otherwise holds the exact person string ('Yash' / 'Dad' / 'Mom' / a custom
+  // name) that income.person / expense.person must match. Applies everywhere on
+  // the dashboard EXCEPT the Other Income and Salary "full record" tables, which
+  // always show every entry regardless of this filter.
+  let dashboardPersonFilter = 'all';
+  const personFilterOptions = document.getElementById('person-filter-options');
+  const personFilterOtherInput = document.getElementById('person-filter-other-input');
+
+  function matchesPersonFilter(e){
+    if(dashboardPersonFilter === 'all') return true;
+    return e.person === dashboardPersonFilter;
+  }
+
+  personFilterOptions.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      personFilterOptions.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const key = btn.dataset.person;
+      if(key === 'Other'){
+        personFilterOtherInput.style.display = '';
+        dashboardPersonFilter = personFilterOtherInput.value.trim() || 'Other';
+        personFilterOtherInput.focus();
+      } else {
+        personFilterOtherInput.style.display = 'none';
+        dashboardPersonFilter = key;
+      }
+      renderDashboard();
+    });
+  });
+  personFilterOtherInput.addEventListener('input', ()=>{
+    dashboardPersonFilter = personFilterOtherInput.value.trim() || 'Other';
+    renderDashboard();
+  });
+
   // ---------- Dashboard rendering ----------
   let chartIncomeCat, chartExpenseCat, chartTrend;
   let lastIncEntries = [], lastExpEntries = [], lastPeriodLabel = '';
@@ -1322,7 +1408,7 @@
     // categories with zero entries are skipped entirely. Other Income entries logged
     // for relatives (not Jayantilal Kaila) don't count here — see the separate
     // "Other Income — full record" table for those.
-    const countableIncome = DATA.income.filter(isCountableIncome);
+    const countableIncome = DATA.income.filter(e=> isCountableIncome(e) && matchesPersonFilter(e));
     const cats = new Set(countableIncome.map(e=> e.category));
 
     if(cats.size === 0){
@@ -1393,6 +1479,50 @@
     }).join('');
   }
 
+  function renderSalaryRecordTable(from, to){
+    const tbody = document.querySelector('#table-salary-record tbody');
+    if(!tbody) return;
+
+    // Always the full Salary history — deliberately ignores dashboardPersonFilter,
+    // same as the Other Income record table. Gap here is simply the time since the
+    // previous Salary entry (no per-person rotation, unlike Other Income).
+    const allSalary = DATA.income
+      .filter(e=> e.category === 'Salary')
+      .slice()
+      .sort((a,b)=> a.date.localeCompare(b.date));
+
+    let priorDate = null;
+    const withGap = allSalary.map(e=>{
+      const gapDays = priorDate ? Math.round((new Date(e.date+'T00:00:00') - new Date(priorDate+'T00:00:00')) / 86400000) : null;
+      const row = { ...e, priorDate, gapDays };
+      priorDate = e.date;
+      return row;
+    });
+
+    const entries = withGap
+      .filter(e=> inRange(e.date, from, to))
+      .sort((a,b)=> b.date.localeCompare(a.date));
+
+    if(entries.length === 0){
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted); padding:14px 0;">No Salary entries in this period</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = entries.map(e=>{
+      const whom = [e.mode, e.person].filter(Boolean).join(' · ') || '—';
+      const lastReceivedHtml = e.priorDate ? fmtDate(e.priorDate) : '<span style="color:var(--muted);">First entry</span>';
+      let gapHtml;
+      if(e.gapDays === null){
+        gapHtml = '<span class="gap-pill gap-none"><span class="dot2"></span>—</span>';
+      } else {
+        const pillClass = e.gapDays > 30 ? 'gap-late' : (e.gapDays >= 20 ? 'gap-warn' : 'gap-fresh');
+        const label = e.gapDays === 1 ? '1 day' : e.gapDays + ' days';
+        gapHtml = `<span class="gap-pill ${pillClass}"><span class="dot2"></span>${label}</span>`;
+      }
+      return `<tr><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td>${escapeHtml(whom)}</td><td class="gap-last">${lastReceivedHtml}</td><td>${gapHtml}</td></tr>`;
+    }).join('');
+  }
+
   function buildDateList(from, to){
     const dates = [];
     let d = new Date(from+'T00:00:00');
@@ -1434,8 +1564,8 @@
     let from = rangeFrom.value, to = rangeTo.value;
     if(from > to){ [from, to] = [to, from]; }
 
-    const incEntries = DATA.income.filter(e=>inRange(e.date, from, to) && isCountableIncome(e));
-    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to));
+    const incEntries = DATA.income.filter(e=>inRange(e.date, from, to) && isCountableIncome(e) && matchesPersonFilter(e));
+    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to) && matchesPersonFilter(e));
 
     const totalIncome = incEntries.reduce((s,e)=>s+e.amount,0);
     const totalExpense = expEntries.reduce((s,e)=>s+e.amount,0);
@@ -1508,6 +1638,7 @@
     renderCatTable('table-expense', catTotalsExp, totalExpense, 'expense');
     renderIncomeGapTable();
     renderOtherIncomeRecordTable(from, to);
+    renderSalaryRecordTable(from, to);
     renderPendingAlert();
 
     // trend
@@ -1588,7 +1719,7 @@
         const yr = String(d.getFullYear()).slice(2);
         const metaBits = isIncome
           ? [item.mode, item.person, item.note].filter(Boolean)
-          : [item.mode, item.desc].filter(Boolean);
+          : [item.mode, item.person, item.desc].filter(Boolean);
         return `<div class="drill-row">
           <div class="d-date"><b>${day}</b>${mon} '${yr}</div>
           <div class="d-main">
@@ -1817,10 +1948,12 @@
     await loadExpenseCategories();
     renderExpenseCategorySelect();
     renderFeed();
+    renderPendingAlert();
     setPreset('month');
     await pullFromSheet();
     renderExpenseCategorySelect();
     renderFeed();
+    renderPendingAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
   })();
 
