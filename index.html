@@ -202,6 +202,7 @@
   .alert-card.neutral .badge .dot{background:var(--navy);}
   .alert-card .headline{font-family:'Fraunces',serif; font-size:16.5px; font-weight:600; margin:2px 0 4px;}
   .alert-card .detail{font-size:12px; color:var(--ink-soft); line-height:1.4;}
+  .pending-alert-card{margin-bottom:20px; padding:16px 20px;}
 
   .chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;}
   @media (max-width:860px){.chart-grid{grid-template-columns:1fr;}}
@@ -254,9 +255,6 @@
   table.record-table th:nth-child(2), table.record-table td:nth-child(2){text-align:left;}
   table.record-table th:nth-child(3), table.record-table td:nth-child(3){text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;}
   table.record-table th:last-child, table.record-table td:last-child{text-align:right;}
-  .status-pill{display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; white-space:nowrap;}
-  .status-pill.counted{background:var(--income-soft); color:var(--income);}
-  .status-pill.record-only{background:var(--line-soft); color:var(--muted);}
 
   .overview-card{padding:22px; margin-bottom:20px;}
   .overview-card p{font-size:14px; line-height:1.75; color:var(--ink-soft); margin:0 0 10px;}
@@ -448,6 +446,27 @@
   }
   .catmgr-msg{font-size:11.5px; color:var(--expense); padding:0 22px 12px; display:none;}
   .catmgr-msg.show{display:block;}
+
+  /* ---------- Pending Other Income settlement ---------- */
+  .pending-modal{max-width:440px;}
+  .pending-row{padding:14px 22px; border-bottom:1px solid var(--line-soft);}
+  .pending-row:last-child{border-bottom:none;}
+  .pending-row-top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;}
+  .pending-row-date{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .pending-row-amt{font-family:'Inter Tight',sans-serif; font-weight:700; color:var(--income); font-size:14.5px;}
+  .pending-row-note{font-size:11.5px; color:var(--muted); margin-bottom:10px;}
+  .pending-settle{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+  .pending-settle select, .pending-settle input[type="text"]{
+    width:100%; padding:9px 11px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper);
+    font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink); outline:none;
+  }
+  .pending-settle select:focus, .pending-settle input:focus{border-color:var(--ink);}
+  .pending-update-btn{
+    padding:10px; border:none; border-radius:9px; background:var(--ink); color:var(--paper);
+    font-family:'Inter Tight',sans-serif; font-weight:700; font-size:13px; cursor:pointer;
+  }
+  .pending-update-btn:hover{opacity:.88;}
+  .pending-empty{padding:24px 22px; text-align:center; color:var(--muted); font-size:13px;}
 </style>
 </head>
 <body>
@@ -532,6 +551,13 @@
               <option value="Ansoya Kaila">
             </datalist>
           </div>
+          <div class="field" id="inc-received-timing-field" style="display:none;">
+            <label>Receipt status</label>
+            <div class="seg" id="inc-received-timing">
+              <button type="button" data-val="now" class="active">Received now</button>
+              <button type="button" data-val="later">Will receive later</button>
+            </div>
+          </div>
           <div class="field">
             <label>Amount</label>
             <div class="amount-field">
@@ -539,14 +565,14 @@
               <input type="number" id="inc-amount" min="0" step="0.01" placeholder="0.00" required>
             </div>
           </div>
-          <div class="field">
+          <div class="field" id="inc-mode-field">
             <label>Received in</label>
             <div class="seg" id="inc-mode">
               <button type="button" data-val="Bank" class="active">Bank</button>
               <button type="button" data-val="Cash">Cash</button>
             </div>
           </div>
-          <div class="field">
+          <div class="field" id="inc-person-field">
             <label>With whom</label>
             <select id="inc-person">
               <option>Yash</option>
@@ -665,6 +691,14 @@
       </div>
     </div>
 
+    <div class="card alert-card medium pending-alert-card" id="pending-alert-card" style="display:none; cursor:pointer;">
+      <div>
+        <div class="badge"><span class="dot"></span><span id="pending-alert-badge">PENDING</span></div>
+        <div class="headline" id="pending-alert-headline">Other Income — receipt details pending</div>
+      </div>
+      <div class="detail" id="pending-alert-detail">Tap to add bank/cash and person details.</div>
+    </div>
+
     <div class="chart-grid">
       <div class="card chart-card">
         <div class="section-title">Income by category</div>
@@ -702,8 +736,8 @@
 
     <div class="card gap-card">
       <div class="section-title">Other Income — full record</div>
-      <div class="gap-sub">Every Other Income entry for this period, including relatives — for tracking purposes only. Only Jayantilal Kaila's entries count toward your income totals above.</div>
-      <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Person</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table>
+      <div class="gap-sub">Every Other Income entry, all people, for tracking purposes — only Jayantilal Kaila's counts toward your income totals above. "Last received" and "Gap" show the time since that same person's previous turn.</div>
+      <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Person</th><th>Date</th><th>Amount</th><th>Last received</th><th>Gap</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card overview-card">
@@ -743,6 +777,19 @@
       <input type="text" id="catmgr-new-input" placeholder="New category name">
       <button type="button" id="catmgr-add-btn">Add</button>
     </div>
+  </div>
+</div>
+
+<div class="catmgr-overlay" id="pending-overlay">
+  <div class="catmgr-modal pending-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>Other Income — pending receipts</h3>
+        <div class="catmgr-sub">Add bank/cash and person details once Jayantilal Kaila's income actually arrives.</div>
+      </div>
+      <button class="catmgr-close" id="pending-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="pending-list"></div>
   </div>
 </div>
 
@@ -964,17 +1011,49 @@
     incPersonManual.classList.toggle('show', incPerson.value === 'Other');
   });
 
-  // ---------- Other Income turn field ----------
+  // ---------- Other Income turn field + conditional mode/whom + receipt status ----------
   const incCategory = document.getElementById('inc-category');
   const incOtherPersonField = document.getElementById('inc-other-person-field');
   const incOtherPerson = document.getElementById('inc-other-person');
+  const incReceivedTimingField = document.getElementById('inc-received-timing-field');
+  const incModeField = document.getElementById('inc-mode-field');
+  const incPersonField = document.getElementById('inc-person-field');
+
+  function resetReceivedTiming(){
+    const seg = document.getElementById('inc-received-timing');
+    seg.querySelectorAll('button').forEach(b=> b.classList.toggle('active', b.dataset.val === 'now'));
+  }
+
+  // Bank/Cash + "With whom" are only relevant when money has actually changed hands:
+  // always for the regular income categories, and for Other Income only when it's
+  // Jayantilal Kaila AND he's received it already (not a "will receive later" placeholder).
+  // Ishwarlal Kaila / Ansoya Kaila entries never need these — they're record-only.
+  function syncOtherIncomeFieldsVisibility(){
+    const isOther = incCategory.value === 'Other Income';
+    const personVal = incOtherPerson.value.trim();
+    const isJayantilal = isOther && personVal === OTHER_INCOME_OWNER;
+    incReceivedTimingField.style.display = isJayantilal ? '' : 'none';
+
+    let showModeAndWhom;
+    if(!isOther) showModeAndWhom = true;
+    else if(isJayantilal) showModeAndWhom = segVal('inc-received-timing') === 'now';
+    else showModeAndWhom = false;
+
+    incModeField.style.display = showModeAndWhom ? '' : 'none';
+    incPersonField.style.display = showModeAndWhom ? '' : 'none';
+    if(!showModeAndWhom) incPersonManual.classList.remove('show');
+  }
+
   function syncOtherPersonField(){
     const show = incCategory.value === 'Other Income';
     incOtherPersonField.style.display = show ? '' : 'none';
-    if(show) incOtherPerson.value = nextOtherIncomeTurn();
-    else incOtherPerson.value = '';
+    incOtherPerson.value = show ? nextOtherIncomeTurn() : '';
+    resetReceivedTiming();
+    syncOtherIncomeFieldsVisibility();
   }
   incCategory.addEventListener('change', syncOtherPersonField);
+  incOtherPerson.addEventListener('input', ()=>{ resetReceivedTiming(); syncOtherIncomeFieldsVisibility(); });
+  document.querySelectorAll('#inc-received-timing button').forEach(b=> b.addEventListener('click', syncOtherIncomeFieldsVisibility));
   syncOtherPersonField();
 
   // default dates to today
@@ -984,20 +1063,27 @@
   // ---------- Form submits ----------
   document.getElementById('income-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const person = incPerson.value === 'Other' ? (document.getElementById('inc-person-other').value.trim() || 'Other') : incPerson.value;
     const category = document.getElementById('inc-category').value;
+    const isOther = category === 'Other Income';
+    const otherPerson = isOther ? (incOtherPerson.value.trim() || nextOtherIncomeTurn()) : null;
+    const isJayantilal = isOther && otherPerson === OTHER_INCOME_OWNER;
+    const timing = isJayantilal ? segVal('inc-received-timing') : null;
+    const showModeAndWhom = !isOther || timing === 'now';
+
     const entry = {
       id: uid(),
       date: document.getElementById('inc-date').value,
       category,
       amount: parseFloat(document.getElementById('inc-amount').value) || 0,
-      mode: segVal('inc-mode'),
-      person,
       note: document.getElementById('inc-note').value.trim()
     };
-    if(category === 'Other Income'){
-      entry.otherPerson = incOtherPerson.value.trim() || nextOtherIncomeTurn();
+    if(isOther) entry.otherPerson = otherPerson;
+    if(showModeAndWhom){
+      entry.mode = segVal('inc-mode');
+      entry.person = incPerson.value === 'Other' ? (document.getElementById('inc-person-other').value.trim() || 'Other') : incPerson.value;
     }
+    if(isJayantilal) entry.pending = (timing === 'later');
+
     if(entry.amount <= 0) return;
     DATA.income.push(entry);
     await saveData();
@@ -1008,6 +1094,8 @@
     document.querySelector('#inc-mode button[data-val="Bank"]').click();
     flashMsg('inc-msg');
     renderFeed();
+    renderPendingAlert();
+    if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
 
@@ -1260,23 +1348,42 @@
     const tbody = document.querySelector('#table-other-income-record tbody');
     if(!tbody) return;
 
-    const entries = DATA.income
-      .filter(e=> e.category === 'Other Income' && inRange(e.date, from, to))
+    // walk every Other Income entry ever, oldest first, tracking each person's
+    // previous turn so we can show the gap since THEIR last entry (not today).
+    const allOther = DATA.income
+      .filter(e=> e.category === 'Other Income')
       .slice()
+      .sort((a,b)=> a.date.localeCompare(b.date));
+
+    const priorDateByPerson = {};
+    const withGap = allOther.map(e=>{
+      const person = e.otherPerson || '—';
+      const priorDate = priorDateByPerson[person] || null;
+      const gapDays = priorDate ? Math.round((new Date(e.date+'T00:00:00') - new Date(priorDate+'T00:00:00')) / 86400000) : null;
+      priorDateByPerson[person] = e.date;
+      return { ...e, person, priorDate, gapDays };
+    });
+
+    const entries = withGap
+      .filter(e=> inRange(e.date, from, to))
       .sort((a,b)=> b.date.localeCompare(a.date));
 
     if(entries.length === 0){
-      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted); padding:14px 0;">No Other Income entries in this period</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted); padding:14px 0;">No Other Income entries in this period</td></tr>';
       return;
     }
 
     tbody.innerHTML = entries.map(e=>{
-      const person = e.otherPerson || '—';
-      const counted = isCountableIncome(e);
-      const statusHtml = counted
-        ? '<span class="status-pill counted">Counted</span>'
-        : '<span class="status-pill record-only">Record only</span>';
-      return `<tr><td>${escapeHtml(person)}</td><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td>${statusHtml}</td></tr>`;
+      const lastReceivedHtml = e.priorDate ? fmtDate(e.priorDate) : '<span style="color:var(--muted);">First entry</span>';
+      let gapHtml;
+      if(e.gapDays === null){
+        gapHtml = '<span class="gap-pill gap-none"><span class="dot2"></span>—</span>';
+      } else {
+        const pillClass = e.gapDays > 30 ? 'gap-late' : (e.gapDays >= 20 ? 'gap-warn' : 'gap-fresh');
+        const label = e.gapDays === 1 ? '1 day' : e.gapDays + ' days';
+        gapHtml = `<span class="gap-pill ${pillClass}"><span class="dot2"></span>${label}</span>`;
+      }
+      return `<tr><td>${escapeHtml(e.person)}</td><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td class="gap-last">${lastReceivedHtml}</td><td>${gapHtml}</td></tr>`;
     }).join('');
   }
 
@@ -1395,6 +1502,7 @@
     renderCatTable('table-expense', catTotalsExp, totalExpense, 'expense');
     renderIncomeGapTable();
     renderOtherIncomeRecordTable(from, to);
+    renderPendingAlert();
 
     // trend
     const dates = buildDateList(from, to);
@@ -1568,6 +1676,97 @@
   document.getElementById('catmgr-add-btn').addEventListener('click', addCategory);
   catmgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addCategory(); } });
   catmgrOverlay.addEventListener('click', (e)=>{ if(e.target === catmgrOverlay) closeCategoryManager(); });
+
+  // ---------- Pending Other Income settlement ----------
+  const pendingAlertCard = document.getElementById('pending-alert-card');
+  const pendingOverlay = document.getElementById('pending-overlay');
+  const pendingList = document.getElementById('pending-list');
+
+  function getPendingEntries(){
+    return DATA.income.filter(e => e.category === 'Other Income' && e.otherPerson === OTHER_INCOME_OWNER && e.pending === true);
+  }
+
+  function renderPendingAlert(){
+    const pending = getPendingEntries();
+    if(pending.length === 0){ pendingAlertCard.style.display = 'none'; return; }
+    pendingAlertCard.style.display = '';
+    const total = pending.reduce((s,e)=>s+e.amount,0);
+    document.getElementById('pending-alert-detail').textContent =
+      `${pending.length} ${pending.length===1?'entry':'entries'} totalling ${fmtINR(total)} — tap to add bank/cash and person details.`;
+  }
+
+  function renderPendingList(){
+    const pending = getPendingEntries().slice().sort((a,b)=> b.date.localeCompare(a.date));
+    if(pending.length === 0){
+      pendingList.innerHTML = '<div class="pending-empty">Nothing pending — all caught up.</div>';
+      return;
+    }
+    pendingList.innerHTML = pending.map(e=>{
+      const noteHtml = e.note ? `<div class="pending-row-note">${escapeHtml(e.note)}</div>` : '';
+      return `<div class="pending-row" data-id="${e.id}">
+        <div class="pending-row-top"><div class="pending-row-date">${fmtDate(e.date)}</div><div class="pending-row-amt">+${fmtINR(e.amount)}</div></div>
+        ${noteHtml}
+        <div class="pending-settle">
+          <div class="seg pending-mode-seg" data-id="${e.id}">
+            <button type="button" data-val="Bank" class="active">Bank</button>
+            <button type="button" data-val="Cash">Cash</button>
+          </div>
+          <select class="pending-person-select" data-id="${e.id}">
+            <option>Yash</option>
+            <option>Dad</option>
+            <option>Mom</option>
+            <option value="Other">Other (specify)</option>
+          </select>
+          <input type="text" class="pending-person-other" data-id="${e.id}" placeholder="Enter name" style="display:none;">
+          <button type="button" class="pending-update-btn" data-id="${e.id}">Update entry</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    pendingList.querySelectorAll('.pending-mode-seg').forEach(seg=>{
+      seg.querySelectorAll('button').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+          b.classList.add('active');
+        });
+      });
+    });
+    pendingList.querySelectorAll('.pending-person-select').forEach(sel=>{
+      sel.addEventListener('change', ()=>{
+        const id = sel.dataset.id;
+        const manual = pendingList.querySelector(`.pending-person-other[data-id="${id}"]`);
+        manual.style.display = sel.value === 'Other' ? '' : 'none';
+      });
+    });
+    pendingList.querySelectorAll('.pending-update-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.id;
+        const seg = pendingList.querySelector(`.pending-mode-seg[data-id="${id}"]`);
+        const sel = pendingList.querySelector(`.pending-person-select[data-id="${id}"]`);
+        const manual = pendingList.querySelector(`.pending-person-other[data-id="${id}"]`);
+        const mode = seg.querySelector('button.active').dataset.val;
+        const person = sel.value === 'Other' ? (manual.value.trim() || 'Other') : sel.value;
+        const entry = DATA.income.find(e => e.id === id);
+        if(!entry) return;
+        entry.mode = mode;
+        entry.person = person;
+        entry.pending = false;
+        await saveData();
+        renderPendingList();
+        renderPendingAlert();
+        renderFeed();
+        if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+        pushToSheet();
+      });
+    });
+  }
+
+  function openPendingOverlay(){ renderPendingList(); pendingOverlay.classList.add('show'); }
+  function closePendingOverlay(){ pendingOverlay.classList.remove('show'); }
+
+  pendingAlertCard.addEventListener('click', openPendingOverlay);
+  document.getElementById('pending-close-btn').addEventListener('click', closePendingOverlay);
+  pendingOverlay.addEventListener('click', (e)=>{ if(e.target === pendingOverlay) closePendingOverlay(); });
 
   // ---------- Login ----------
   const AUTH_KEY = 'khaata-remember-auth';
