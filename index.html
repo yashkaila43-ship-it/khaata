@@ -117,9 +117,6 @@
   .seg button{flex:1; padding:9px; border-radius:8px; border:1.5px solid var(--line); background:var(--paper); font-weight:600; font-size:13px; color:var(--muted); cursor:pointer;}
   .seg button.active{border-color:var(--ink); color:var(--ink); background:var(--surface);}
 
-  .person-manual{display:none; margin-top:8px;}
-  .person-manual.show{display:block;}
-
   .submit-btn{
     width:100%; padding:13px; border:none; border-radius:10px; background:var(--ink); color:var(--paper);
     font-family:'Inter Tight',sans-serif; font-weight:700; font-size:14.5px; cursor:pointer; margin-top:6px;
@@ -455,6 +452,13 @@
   .catmgr-row .cdel{background:none; border:none; color:var(--line); cursor:pointer; font-size:15px; padding:2px 4px; flex-shrink:0;}
   .catmgr-row .cdel:hover:not(:disabled){color:var(--expense);}
   .catmgr-row .cdel:disabled{color:var(--line-soft); cursor:not-allowed;}
+  .catmgr-row .cedit{background:none; border:none; color:var(--line); cursor:pointer; font-size:13px; padding:2px 5px; flex-shrink:0;}
+  .catmgr-row .cedit:hover:not(:disabled){color:var(--ink);}
+  .catmgr-row .cedit:disabled{color:var(--line-soft); cursor:not-allowed;}
+  .catmgr-row .cname-edit{
+    flex:1; min-width:0; padding:5px 7px; border:1.5px solid var(--ink); border-radius:6px;
+    font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink); outline:none;
+  }
   .catmgr-add{display:flex; gap:8px; padding:14px 22px; border-top:1px solid var(--line-soft);}
   .catmgr-add input{
     flex:1; min-width:0; padding:9px 11px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper);
@@ -554,14 +558,8 @@
             <input type="date" id="inc-date" required>
           </div>
           <div class="field">
-            <label>Category</label>
-            <select id="inc-category">
-              <option>Salary</option>
-              <option>Business / Freelance</option>
-              <option>Investment Returns</option>
-              <option>Gift Received</option>
-              <option>Other Income</option>
-            </select>
+            <label>Category <button type="button" class="pencil-btn" id="manage-inc-cat-btn" title="Add or remove categories">✎</button></label>
+            <select id="inc-category"></select>
           </div>
           <div class="field" id="inc-other-person-field" style="display:none;">
             <label>Other income — whose turn</label>
@@ -594,16 +592,8 @@
             </div>
           </div>
           <div class="field" id="inc-person-field">
-            <label>With whom</label>
-            <select id="inc-person">
-              <option>Yash</option>
-              <option>Dad</option>
-              <option>Mom</option>
-              <option value="Other">Other (specify)</option>
-            </select>
-            <div class="person-manual" id="inc-person-manual">
-              <input type="text" id="inc-person-other" placeholder="Enter name">
-            </div>
+            <label>With whom <button type="button" class="pencil-btn" id="manage-people-btn-inc" title="Add, rename or remove names">✎</button></label>
+            <select id="inc-person"></select>
           </div>
           <div class="field">
             <label>Note (optional)</label>
@@ -638,16 +628,8 @@
             </div>
           </div>
           <div class="field">
-            <label>By whom</label>
-            <select id="exp-person">
-              <option>Yash</option>
-              <option>Dad</option>
-              <option>Mom</option>
-              <option value="Other">Other (specify)</option>
-            </select>
-            <div class="person-manual" id="exp-person-manual">
-              <input type="text" id="exp-person-other" placeholder="Enter name">
-            </div>
+            <label>By whom <button type="button" class="pencil-btn" id="manage-people-btn-exp" title="Add, rename or remove names">✎</button></label>
+            <select id="exp-person"></select>
           </div>
           <div class="field">
             <label>Description</label>
@@ -833,6 +815,42 @@
   </div>
 </div>
 
+<div class="catmgr-overlay" id="inc-catmgr-overlay">
+  <div class="catmgr-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>Income categories</h3>
+        <div class="catmgr-sub">Categories with existing entries can't be removed. Salary and Other Income are built-in and can't be removed.</div>
+      </div>
+      <button class="catmgr-close" id="inc-catmgr-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="inc-catmgr-list"></div>
+    <div class="catmgr-msg" id="inc-catmgr-msg"></div>
+    <div class="catmgr-add">
+      <input type="text" id="inc-catmgr-new-input" placeholder="New category name">
+      <button type="button" id="inc-catmgr-add-btn">Add</button>
+    </div>
+  </div>
+</div>
+
+<div class="catmgr-overlay" id="people-mgr-overlay">
+  <div class="catmgr-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>People — with whom / by whom</h3>
+        <div class="catmgr-sub">Shared by both forms. Names with existing entries can't be renamed or removed.</div>
+      </div>
+      <button class="catmgr-close" id="people-mgr-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="people-mgr-list"></div>
+    <div class="catmgr-msg" id="people-mgr-msg"></div>
+    <div class="catmgr-add">
+      <input type="text" id="people-mgr-new-input" placeholder="New name">
+      <button type="button" id="people-mgr-add-btn">Add</button>
+    </div>
+  </div>
+</div>
+
 <div class="catmgr-overlay" id="pending-overlay">
   <div class="catmgr-modal pending-modal">
     <div class="catmgr-head">
@@ -884,6 +902,83 @@
     sel.innerHTML = expenseCategories.map(c => `<option>${escapeHtml(c)}</option>`).join('');
     if(current && expenseCategories.includes(current)) sel.value = current;
   }
+
+  // ---------- Income categories (editable via pencil icon) ----------
+  const INC_CATS_KEY = 'khaata-income-categories';
+  const DEFAULT_INCOME_CATEGORIES = ['Salary','Business / Freelance','Investment Returns','Gift Received','Other Income'];
+  // Salary and Other Income drive dedicated dashboard logic (receipt timing, the
+  // Other Income turn tracker, the Salary/Other Income full-record tables) — they
+  // stay available even with zero entries and can never be removed.
+  const PROTECTED_INCOME_CATEGORIES = ['Salary','Other Income'];
+  let incomeCategories = DEFAULT_INCOME_CATEGORIES.slice();
+
+  async function loadIncomeCategories(){
+    try{
+      const raw = localStorage.getItem(INC_CATS_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed) && parsed.length){
+          // make sure the built-in categories always exist, even in an older saved list
+          PROTECTED_INCOME_CATEGORIES.forEach(c=>{ if(!parsed.includes(c)) parsed.push(c); });
+          incomeCategories = parsed;
+          return;
+        }
+      }
+    }catch(e){ /* fall back to defaults */ }
+    incomeCategories = DEFAULT_INCOME_CATEGORIES.slice();
+    await saveIncomeCategories();
+  }
+  async function saveIncomeCategories(){
+    try{ localStorage.setItem(INC_CATS_KEY, JSON.stringify(incomeCategories)); }
+    catch(e){ console.error('Saving income categories failed', e); }
+  }
+  function renderIncomeCategorySelect(preferredValue){
+    const sel = document.getElementById('inc-category');
+    if(!sel) return;
+    const current = preferredValue || sel.value;
+    sel.innerHTML = incomeCategories.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+    if(current && incomeCategories.includes(current)) sel.value = current;
+  }
+  loadIncomeCategories();
+  renderIncomeCategorySelect();
+
+  // ---------- People — "with whom" (income) / "by whom" (expense), shared list ----------
+  const PEOPLE_KEY = 'khaata-people';
+  const DEFAULT_PEOPLE = ['Yash','Dad','Mom'];
+  let peopleList = DEFAULT_PEOPLE.slice();
+
+  async function loadPeopleList(){
+    try{
+      const raw = localStorage.getItem(PEOPLE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed) && parsed.length){ peopleList = parsed; return; }
+      }
+    }catch(e){ /* fall back to defaults */ }
+    peopleList = DEFAULT_PEOPLE.slice();
+    await savePeopleList();
+  }
+  async function savePeopleList(){
+    try{ localStorage.setItem(PEOPLE_KEY, JSON.stringify(peopleList)); }
+    catch(e){ console.error('Saving people failed', e); }
+  }
+  function renderPersonSelects(preferredIncValue, preferredExpValue){
+    const optionsHtml = peopleList.map(p => `<option>${escapeHtml(p)}</option>`).join('');
+    const incSel = document.getElementById('inc-person');
+    if(incSel){
+      const cur = preferredIncValue || incSel.value;
+      incSel.innerHTML = optionsHtml;
+      if(cur && peopleList.includes(cur)) incSel.value = cur;
+    }
+    const expSel = document.getElementById('exp-person');
+    if(expSel){
+      const cur = preferredExpValue || expSel.value;
+      expSel.innerHTML = optionsHtml;
+      if(cur && peopleList.includes(cur)) expSel.value = cur;
+    }
+  }
+  loadPeopleList();
+  renderPersonSelects();
 
   const fmtINR = (n) => new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', maximumFractionDigits:0}).format(n || 0);
   const fmtDate = (iso) => { const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}); };
@@ -986,13 +1081,33 @@
       const remote = await res.json();
       DATA = { income: normalizeEntries(remote.income), expense: normalizeEntries(remote.expense) };
       await saveData();
+      let needsSeeding = false;
       if(Array.isArray(remote.categories) && remote.categories.length){
         expenseCategories = remote.categories;
         await saveExpenseCategories();
         renderExpenseCategorySelect();
       } else {
-        // Sheet has no "Categories" tab data yet (first run after this update) —
-        // seed it with whatever categories this device currently has.
+        needsSeeding = true;
+      }
+      if(Array.isArray(remote.incomeCategories) && remote.incomeCategories.length){
+        PROTECTED_INCOME_CATEGORIES.forEach(c=>{ if(!remote.incomeCategories.includes(c)) remote.incomeCategories.push(c); });
+        incomeCategories = remote.incomeCategories;
+        await saveIncomeCategories();
+        renderIncomeCategorySelect();
+      } else {
+        needsSeeding = true;
+      }
+      if(Array.isArray(remote.people) && remote.people.length){
+        peopleList = remote.people;
+        await savePeopleList();
+        renderPersonSelects();
+      } else {
+        needsSeeding = true;
+      }
+      if(needsSeeding){
+        // Sheet is missing one or more of the Categories/IncomeCategories/People
+        // tabs (first run after this update) — seed it with whatever this device
+        // currently has.
         pushToSheet();
       }
       updateSyncDot('linked');
@@ -1012,7 +1127,10 @@
       const res = await fetch(SHEET_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ income: DATA.income, expense: DATA.expense, categories: expenseCategories })
+        body: JSON.stringify({
+          income: DATA.income, expense: DATA.expense,
+          categories: expenseCategories, incomeCategories: incomeCategories, people: peopleList
+        })
       });
       if(!res.ok) throw new Error('Request failed: ' + res.status);
       await res.json();
@@ -1061,18 +1179,8 @@
   wireSeg('exp-mode');
   function segVal(id){ return document.querySelector('#'+id+' button.active').dataset.val; }
 
-  // ---------- Person "Other" manual field ----------
   const incPerson = document.getElementById('inc-person');
-  const incPersonManual = document.getElementById('inc-person-manual');
-  incPerson.addEventListener('change', ()=>{
-    incPersonManual.classList.toggle('show', incPerson.value === 'Other');
-  });
-
   const expPerson = document.getElementById('exp-person');
-  const expPersonManual = document.getElementById('exp-person-manual');
-  expPerson.addEventListener('change', ()=>{
-    expPersonManual.classList.toggle('show', expPerson.value === 'Other');
-  });
 
   // ---------- Other Income turn field + conditional mode/whom + receipt status ----------
   const incCategory = document.getElementById('inc-category');
@@ -1104,7 +1212,6 @@
 
     incModeField.style.display = showModeAndWhom ? '' : 'none';
     incPersonField.style.display = showModeAndWhom ? '' : 'none';
-    if(!showModeAndWhom) incPersonManual.classList.remove('show');
   }
 
   function syncOtherPersonField(){
@@ -1149,7 +1256,7 @@
     if(isOther) entry.otherPerson = otherPerson;
     if(showModeAndWhom){
       entry.mode = segVal('inc-mode');
-      entry.person = incPerson.value === 'Other' ? (document.getElementById('inc-person-other').value.trim() || 'Other') : incPerson.value;
+      entry.person = incPerson.value;
     }
     if(isJayantilal) entry.pending = (timing === 'later');
 
@@ -1158,7 +1265,6 @@
     await saveData();
     e.target.reset();
     document.getElementById('inc-date').value = todayISO();
-    incPersonManual.classList.remove('show');
     syncOtherPersonField();
     document.querySelector('#inc-mode button[data-val="Bank"]').click();
     flashMsg('inc-msg');
@@ -1176,7 +1282,7 @@
       amount: parseFloat(document.getElementById('exp-amount').value) || 0,
       category: document.getElementById('exp-category').value,
       mode: segVal('exp-mode'),
-      person: expPerson.value === 'Other' ? (document.getElementById('exp-person-other').value.trim() || 'Other') : expPerson.value,
+      person: expPerson.value,
       desc: document.getElementById('exp-desc').value.trim()
     };
     if(entry.amount <= 0) return;
@@ -1184,7 +1290,6 @@
     await saveData();
     e.target.reset();
     document.getElementById('exp-date').value = todayISO();
-    expPersonManual.classList.remove('show');
     document.querySelector('#exp-mode button[data-val="Bank"]').click();
     flashMsg('exp-msg');
     renderFeed();
@@ -1816,6 +1921,206 @@
   catmgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addCategory(); } });
   catmgrOverlay.addEventListener('click', (e)=>{ if(e.target === catmgrOverlay) closeCategoryManager(); });
 
+  // ---------- Income category manager ----------
+  const incCatmgrOverlay = document.getElementById('inc-catmgr-overlay');
+  const incCatmgrList = document.getElementById('inc-catmgr-list');
+  const incCatmgrMsg = document.getElementById('inc-catmgr-msg');
+  const incCatmgrNewInput = document.getElementById('inc-catmgr-new-input');
+
+  function incomeCategoryEntryCount(name){
+    return DATA.income.filter(e => e.category === name).length;
+  }
+
+  function showIncCatmgrMsg(text){
+    incCatmgrMsg.textContent = text;
+    incCatmgrMsg.classList.toggle('show', !!text);
+  }
+
+  function renderIncCatmgrList(){
+    if(incomeCategories.length === 0){
+      incCatmgrList.innerHTML = '<div class="drill-empty">No categories yet.</div>';
+      return;
+    }
+    incCatmgrList.innerHTML = incomeCategories.map(cat=>{
+      const protectedCat = PROTECTED_INCOME_CATEGORIES.includes(cat);
+      const count = incomeCategoryEntryCount(cat);
+      const disabled = (protectedCat || count > 0) ? 'disabled' : '';
+      const title = protectedCat ? "Built-in category — can't remove"
+        : (count > 0 ? `In use by ${count} ${count===1?'entry':'entries'} — can't remove` : 'Remove category');
+      return `<div class="catmgr-row">
+        <span class="cname">${escapeHtml(cat)}</span>
+        <span class="ccount">${count} ${count===1?'entry':'entries'}</span>
+        <button class="cdel" data-cat="${escapeHtml(cat)}" ${disabled} title="${title}">×</button>
+      </div>`;
+    }).join('');
+    incCatmgrList.querySelectorAll('.cdel').forEach(btn=>{
+      btn.addEventListener('click', ()=> removeIncomeCategory(btn.dataset.cat));
+    });
+  }
+
+  function openIncomeCategoryManager(){
+    showIncCatmgrMsg('');
+    incCatmgrNewInput.value = '';
+    renderIncCatmgrList();
+    incCatmgrOverlay.classList.add('show');
+  }
+  function closeIncomeCategoryManager(){ incCatmgrOverlay.classList.remove('show'); }
+
+  async function addIncomeCategory(){
+    const name = incCatmgrNewInput.value.trim();
+    if(!name){ showIncCatmgrMsg('Enter a category name.'); return; }
+    const exists = incomeCategories.some(c => c.toLowerCase() === name.toLowerCase());
+    if(exists){ showIncCatmgrMsg('That category already exists.'); return; }
+    incomeCategories.push(name);
+    await saveIncomeCategories();
+    renderIncomeCategorySelect(name);
+    incCatmgrNewInput.value = '';
+    showIncCatmgrMsg('');
+    renderIncCatmgrList();
+    pushToSheet();
+  }
+
+  async function removeIncomeCategory(name){
+    if(PROTECTED_INCOME_CATEGORIES.includes(name)){
+      showIncCatmgrMsg(`"${name}" is a built-in category and can't be removed.`);
+      return;
+    }
+    if(incomeCategoryEntryCount(name) > 0){
+      showIncCatmgrMsg(`Can't remove "${name}" — it has existing entries.`);
+      return;
+    }
+    incomeCategories = incomeCategories.filter(c => c !== name);
+    await saveIncomeCategories();
+    renderIncomeCategorySelect();
+    showIncCatmgrMsg('');
+    renderIncCatmgrList();
+    pushToSheet();
+  }
+
+  document.getElementById('manage-inc-cat-btn').addEventListener('click', openIncomeCategoryManager);
+  document.getElementById('inc-catmgr-close-btn').addEventListener('click', closeIncomeCategoryManager);
+  document.getElementById('inc-catmgr-add-btn').addEventListener('click', addIncomeCategory);
+  incCatmgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addIncomeCategory(); } });
+  incCatmgrOverlay.addEventListener('click', (e)=>{ if(e.target === incCatmgrOverlay) closeIncomeCategoryManager(); });
+
+  // ---------- People manager (shared "with whom" / "by whom" list) ----------
+  const peopleMgrOverlay = document.getElementById('people-mgr-overlay');
+  const peopleMgrList = document.getElementById('people-mgr-list');
+  const peopleMgrMsg = document.getElementById('people-mgr-msg');
+  const peopleMgrNewInput = document.getElementById('people-mgr-new-input');
+
+  // A name is "in use" once it appears on any income or expense entry — counted
+  // across both, since the same list feeds "with whom" and "by whom".
+  function personEntryCount(name){
+    return DATA.income.filter(e => e.person === name).length + DATA.expense.filter(e => e.person === name).length;
+  }
+
+  function showPeopleMgrMsg(text){
+    peopleMgrMsg.textContent = text;
+    peopleMgrMsg.classList.toggle('show', !!text);
+  }
+
+  function renderPeopleMgrList(){
+    if(peopleList.length === 0){
+      peopleMgrList.innerHTML = '<div class="drill-empty">No names yet.</div>';
+      return;
+    }
+    peopleMgrList.innerHTML = peopleList.map(name=>{
+      const count = personEntryCount(name);
+      const locked = count > 0;
+      const disabled = locked ? 'disabled' : '';
+      const title = locked ? `In use by ${count} ${count===1?'entry':'entries'} — can't rename or remove` : '';
+      return `<div class="catmgr-row" data-name="${escapeHtml(name)}">
+        <span class="cname">${escapeHtml(name)}</span>
+        <span class="ccount">${count} ${count===1?'entry':'entries'}</span>
+        <button class="cedit" data-name="${escapeHtml(name)}" ${disabled} title="${title || 'Rename'}">✎</button>
+        <button class="cdel" data-name="${escapeHtml(name)}" ${disabled} title="${title || 'Remove'}">×</button>
+      </div>`;
+    }).join('');
+    peopleMgrList.querySelectorAll('.cdel').forEach(btn=>{
+      btn.addEventListener('click', ()=> removePerson(btn.dataset.name));
+    });
+    peopleMgrList.querySelectorAll('.cedit').forEach(btn=>{
+      btn.addEventListener('click', ()=> startEditPerson(btn.dataset.name));
+    });
+  }
+
+  function startEditPerson(name){
+    if(personEntryCount(name) > 0) return;
+    const row = peopleMgrList.querySelector(`.catmgr-row[data-name="${CSS.escape(name)}"]`);
+    if(!row) return;
+    row.innerHTML = `<input type="text" class="cname-edit" value="${escapeHtml(name)}">
+      <button class="cedit" title="Save">✓</button>
+      <button class="cdel" title="Cancel">×</button>`;
+    const input = row.querySelector('.cname-edit');
+    input.focus();
+    input.select();
+    const commit = ()=> commitEditPerson(name, input.value.trim());
+    row.querySelector('.cedit').addEventListener('click', commit);
+    row.querySelector('.cdel').addEventListener('click', ()=> renderPeopleMgrList());
+    input.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+      if(e.key === 'Escape'){ e.preventDefault(); renderPeopleMgrList(); }
+    });
+  }
+
+  async function commitEditPerson(oldName, newName){
+    if(!newName){ showPeopleMgrMsg('Enter a name.'); renderPeopleMgrList(); return; }
+    const exists = peopleList.some(p => p.toLowerCase() === newName.toLowerCase() && p !== oldName);
+    if(exists){ showPeopleMgrMsg('That name already exists.'); renderPeopleMgrList(); return; }
+    if(personEntryCount(oldName) > 0){ showPeopleMgrMsg(`Can't rename "${oldName}" — it has existing entries.`); renderPeopleMgrList(); return; }
+    const idx = peopleList.indexOf(oldName);
+    if(idx === -1){ renderPeopleMgrList(); return; }
+    peopleList[idx] = newName;
+    await savePeopleList();
+    renderPersonSelects();
+    showPeopleMgrMsg('');
+    renderPeopleMgrList();
+    pushToSheet();
+  }
+
+  function openPeopleManager(){
+    showPeopleMgrMsg('');
+    peopleMgrNewInput.value = '';
+    renderPeopleMgrList();
+    peopleMgrOverlay.classList.add('show');
+  }
+  function closePeopleManager(){ peopleMgrOverlay.classList.remove('show'); }
+
+  async function addPerson(){
+    const name = peopleMgrNewInput.value.trim();
+    if(!name){ showPeopleMgrMsg('Enter a name.'); return; }
+    const exists = peopleList.some(p => p.toLowerCase() === name.toLowerCase());
+    if(exists){ showPeopleMgrMsg('That name already exists.'); return; }
+    peopleList.push(name);
+    await savePeopleList();
+    renderPersonSelects(name, name);
+    peopleMgrNewInput.value = '';
+    showPeopleMgrMsg('');
+    renderPeopleMgrList();
+    pushToSheet();
+  }
+
+  async function removePerson(name){
+    if(personEntryCount(name) > 0){
+      showPeopleMgrMsg(`Can't remove "${name}" — it has existing entries.`);
+      return;
+    }
+    peopleList = peopleList.filter(p => p !== name);
+    await savePeopleList();
+    renderPersonSelects();
+    showPeopleMgrMsg('');
+    renderPeopleMgrList();
+    pushToSheet();
+  }
+
+  document.getElementById('manage-people-btn-inc').addEventListener('click', openPeopleManager);
+  document.getElementById('manage-people-btn-exp').addEventListener('click', openPeopleManager);
+  document.getElementById('people-mgr-close-btn').addEventListener('click', closePeopleManager);
+  document.getElementById('people-mgr-add-btn').addEventListener('click', addPerson);
+  peopleMgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addPerson(); } });
+  peopleMgrOverlay.addEventListener('click', (e)=>{ if(e.target === peopleMgrOverlay) closePeopleManager(); });
+
   // ---------- Pending Other Income settlement ----------
   const pendingAlertCard = document.getElementById('pending-alert-card');
   const pendingOverlay = document.getElementById('pending-overlay');
@@ -1850,6 +2155,7 @@
     }
     pendingList.innerHTML = pending.map(e=>{
       const noteHtml = e.note ? `<div class="pending-row-note">${escapeHtml(e.note)}</div>` : '';
+      const peopleOptions = peopleList.map(p => `<option>${escapeHtml(p)}</option>`).join('');
       return `<div class="pending-row" data-id="${e.id}">
         <div class="pending-row-top"><div class="pending-row-date">${fmtDate(e.date)}</div><div class="pending-row-amt">+${fmtINR(e.amount)}</div></div>
         ${noteHtml}
@@ -1858,13 +2164,7 @@
             <button type="button" data-val="Bank" class="active">Bank</button>
             <button type="button" data-val="Cash">Cash</button>
           </div>
-          <select class="pending-person-select" data-id="${e.id}">
-            <option>Yash</option>
-            <option>Dad</option>
-            <option>Mom</option>
-            <option value="Other">Other (specify)</option>
-          </select>
-          <input type="text" class="pending-person-other" data-id="${e.id}" placeholder="Enter name" style="display:none;">
+          <select class="pending-person-select" data-id="${e.id}">${peopleOptions}</select>
           <button type="button" class="pending-update-btn" data-id="${e.id}">Update entry</button>
         </div>
       </div>`;
@@ -1878,21 +2178,13 @@
         });
       });
     });
-    pendingList.querySelectorAll('.pending-person-select').forEach(sel=>{
-      sel.addEventListener('change', ()=>{
-        const id = sel.dataset.id;
-        const manual = pendingList.querySelector(`.pending-person-other[data-id="${id}"]`);
-        manual.style.display = sel.value === 'Other' ? '' : 'none';
-      });
-    });
     pendingList.querySelectorAll('.pending-update-btn').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         const id = btn.dataset.id;
         const seg = pendingList.querySelector(`.pending-mode-seg[data-id="${id}"]`);
         const sel = pendingList.querySelector(`.pending-person-select[data-id="${id}"]`);
-        const manual = pendingList.querySelector(`.pending-person-other[data-id="${id}"]`);
         const mode = seg.querySelector('button.active').dataset.val;
-        const person = sel.value === 'Other' ? (manual.value.trim() || 'Other') : sel.value;
+        const person = sel.value;
         const entry = DATA.income.find(e => e.id === id);
         if(!entry) return;
         entry.mode = mode;
