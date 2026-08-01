@@ -264,13 +264,14 @@
   .gap-pill.gap-late .dot2{background:var(--expense);}
   .gap-pill.gap-none{background:var(--line-soft); color:var(--muted);}
 
-  /* Other Income record table: Person, Date, Amount */
+  /* Other Income record table: Date, Person, Amount */
   #table-other-income-record th:nth-child(2), #table-other-income-record td:nth-child(2){text-align:left;}
   #table-other-income-record th:nth-child(3), #table-other-income-record td:nth-child(3){
     text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
   }
-  /* Salary record table: Date, Amount, With whom */
-  #table-salary-record th:nth-child(2), #table-salary-record td:nth-child(2){
+  /* Salary record table: Date, With whom, Amount */
+  #table-salary-record th:nth-child(2), #table-salary-record td:nth-child(2){text-align:left;}
+  #table-salary-record th:nth-child(3), #table-salary-record td:nth-child(3){
     text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
   }
 
@@ -765,14 +766,14 @@
       <div class="section-title">Other Income — full record</div>
       <div class="gap-sub">Every Other Income entry, all people — always shown in full, regardless of the "Whose dashboard" filter above. Only Jayantilal Kaila's settled entries count toward your income totals above.</div>
       <div class="gap-overall" id="other-income-overall"></div>
-      <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Person</th><th>Date</th><th>Amount</th></tr></thead><tbody></tbody></table>
+      <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Date</th><th>Person</th><th>Amount</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card gap-card">
       <div class="section-title">Salary — full record</div>
       <div class="gap-sub">Every Salary entry — always shown in full, regardless of the "Whose dashboard" filter above.</div>
       <div class="gap-overall" id="salary-overall"></div>
-      <table class="gap-table record-table" id="table-salary-record"><thead><tr><th>Date</th><th>Amount</th><th>With whom</th></tr></thead><tbody></tbody></table>
+      <table class="gap-table record-table" id="table-salary-record"><thead><tr><th>Date</th><th>With whom</th><th>Amount</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card overview-card">
@@ -1598,7 +1599,7 @@
 
     tbody.innerHTML = entries.map(e=>{
       const person = e.otherPerson || '—';
-      return `<tr><td>${escapeHtml(person)}</td><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td></tr>`;
+      return `<tr><td>${fmtDate(e.date)}</td><td>${escapeHtml(person)}</td><td>${fmtINR(e.amount)}</td></tr>`;
     }).join('');
   }
 
@@ -1626,7 +1627,7 @@
 
     tbody.innerHTML = entries.map(e=>{
       const whom = [e.mode, e.person].filter(Boolean).join(' · ') || '—';
-      return `<tr><td>${fmtDate(e.date)}</td><td>${fmtINR(e.amount)}</td><td>${escapeHtml(whom)}</td></tr>`;
+      return `<tr><td>${fmtDate(e.date)}</td><td>${escapeHtml(whom)}</td><td>${fmtINR(e.amount)}</td></tr>`;
     }).join('');
   }
 
