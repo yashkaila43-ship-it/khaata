@@ -937,6 +937,26 @@
   const CAT_COLORS_INCOME = ['#3D6B4F','#6E9A7B','#95B49E','#B9CBBB','#DCE7DD','#2F4858'];
   const CAT_COLORS_EXPENSE = ['#B4432F','#C97256','#DA9A7F','#E8BBA8','#B4832A','#D1AA5F','#8A5A3B','#A3735A','#6E5847','#9C5B4A','#C48B7A','#7D4E42','#5F473A','#4A3A30'];
 
+  // Trims each entry and drops case-insensitive duplicates, keeping the first
+  // occurrence's original casing/order. Used for expense categories, income
+  // categories, and the people list — anywhere a flat string list is loaded
+  // from localStorage or pulled from the sheet — so a duplicate that snuck in
+  // (mismatched casing, a race between devices, stray whitespace) collapses
+  // back to one entry instead of showing twice in the manager UI.
+  function dedupeStrings(arr){
+    const seen = new Set();
+    const out = [];
+    (arr || []).forEach(raw=>{
+      const s = String(raw).trim();
+      if(!s) return;
+      const key = s.toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      out.push(s);
+    });
+    return out;
+  }
+
   // ---------- Expense categories (editable via pencil icon) ----------
   const CATS_KEY = 'khaata-expense-categories';
   const DEFAULT_EXPENSE_CATEGORIES = [
@@ -951,7 +971,7 @@
       const raw = localStorage.getItem(CATS_KEY);
       if(raw){
         const parsed = JSON.parse(raw);
-        if(Array.isArray(parsed) && parsed.length){ expenseCategories = parsed; return; }
+        if(Array.isArray(parsed) && parsed.length){ expenseCategories = dedupeStrings(parsed); return; }
       }
     }catch(e){ /* fall back to defaults */ }
     expenseCategories = DEFAULT_EXPENSE_CATEGORIES.slice();
@@ -984,8 +1004,8 @@
         const parsed = JSON.parse(raw);
         if(Array.isArray(parsed) && parsed.length){
           // make sure the built-in categories always exist, even in an older saved list
-          PROTECTED_INCOME_CATEGORIES.forEach(c=>{ if(!parsed.includes(c)) parsed.push(c); });
-          incomeCategories = parsed;
+          PROTECTED_INCOME_CATEGORIES.forEach(c=>{ if(!parsed.some(p => String(p).trim().toLowerCase() === c.toLowerCase())) parsed.push(c); });
+          incomeCategories = dedupeStrings(parsed);
           return;
         }
       }
@@ -1017,7 +1037,7 @@
       const raw = localStorage.getItem(PEOPLE_KEY);
       if(raw){
         const parsed = JSON.parse(raw);
-        if(Array.isArray(parsed) && parsed.length){ peopleList = parsed; return; }
+        if(Array.isArray(parsed) && parsed.length){ peopleList = dedupeStrings(parsed); return; }
       }
     }catch(e){ /* fall back to defaults */ }
     peopleList = DEFAULT_PEOPLE.slice();
@@ -1168,22 +1188,22 @@
       await saveData();
       let needsSeeding = false;
       if(Array.isArray(remote.categories) && remote.categories.length){
-        expenseCategories = remote.categories;
+        expenseCategories = dedupeStrings(remote.categories);
         await saveExpenseCategories();
         renderExpenseCategorySelect();
       } else {
         needsSeeding = true;
       }
       if(Array.isArray(remote.incomeCategories) && remote.incomeCategories.length){
-        PROTECTED_INCOME_CATEGORIES.forEach(c=>{ if(!remote.incomeCategories.includes(c)) remote.incomeCategories.push(c); });
-        incomeCategories = remote.incomeCategories;
+        PROTECTED_INCOME_CATEGORIES.forEach(c=>{ if(!remote.incomeCategories.some(p => String(p).trim().toLowerCase() === c.toLowerCase())) remote.incomeCategories.push(c); });
+        incomeCategories = dedupeStrings(remote.incomeCategories);
         await saveIncomeCategories();
         renderIncomeCategorySelect();
       } else {
         needsSeeding = true;
       }
       if(Array.isArray(remote.people) && remote.people.length){
-        peopleList = remote.people;
+        peopleList = dedupeStrings(remote.people);
         await savePeopleList();
         renderPersonSelects();
       } else {
