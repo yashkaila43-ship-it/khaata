@@ -45,7 +45,22 @@
     pointer-events:none;
     z-index:0;
   }
-  #app{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:28px 22px 80px;}
+  #app{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:28px 22px 80px 46px;}
+
+  /* ---------- Ledger page margin: red rule + binding holes, classic account-book style ---------- */
+  .ledger-margin{
+    position:absolute; top:0; bottom:0; left:0; width:36px;
+    pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(var(--expense), var(--expense)),
+      radial-gradient(circle, rgba(33,31,27,0.16) 0 3.5px, transparent 3.5px);
+    background-position: 28px 0, 11px 50px;
+    background-size: 1.5px 100%, 22px 84px;
+    background-repeat: no-repeat, repeat-y;
+    background-blend-mode: normal;
+    opacity:0.4;
+  }
+  @media (max-width:640px){ .ledger-margin{display:none;} }
 
   /* ---------- Header ---------- */
   .topbar{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:26px; flex-wrap:wrap;}
@@ -566,6 +581,8 @@
 </div>
 
 <div id="app" class="app-hidden">
+
+  <div class="ledger-margin" aria-hidden="true"></div>
 
   <div class="topbar">
     <div class="brand">
