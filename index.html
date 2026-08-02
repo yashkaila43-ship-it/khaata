@@ -1349,8 +1349,10 @@
     expDescSuggest.classList.add('show');
 
     expDescSuggest.querySelectorAll('.desc-suggest-item').forEach(item=>{
-      // mousedown (not click) so this fires before the textarea's blur event hides the list
-      item.addEventListener('mousedown', (ev)=>{
+      // Use click (not mousedown) — removing the item's markup during mousedown meant
+      // the click event that follows would fall through to whatever sat underneath
+      // the dropdown (the Category pencil button), opening the category manager.
+      item.addEventListener('click', (ev)=>{
         ev.preventDefault();
         const desc = item.dataset.desc;
         const cat = item.dataset.cat;
@@ -1360,7 +1362,8 @@
           if([...catSelect.options].some(o => o.value === cat)) catSelect.value = cat;
         }
         hideDescSuggestions();
-        document.getElementById('exp-amount').focus();
+        const amountInput = document.getElementById('exp-amount');
+        if(!amountInput.value.trim()) amountInput.focus();
       });
     });
   }
