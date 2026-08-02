@@ -709,11 +709,9 @@
     <div class="card person-filter-bar" id="person-filter-bar">
       <div class="eyebrow">Whose dashboard</div>
       <div class="range-presets" id="person-filter-options">
-        <button data-person="all" class="active">All</button>
-        <button data-person="Yash">Yash</button>
-        <button data-person="Dad">Dad</button>
-        <button data-person="Mom">Mom</button>
-        <button data-person="Other">Other</button>
+        <!-- Populated dynamically from the current people list (synced from Google
+             Sheets) — see renderPersonFilterOptions(). Always starts with "All"
+             and ends with "Other" for a free-text name. -->
       </div>
       <input type="text" id="person-filter-other-input" class="person-filter-other-input" placeholder="Enter name" style="display:none;">
     </div>
@@ -1206,6 +1204,7 @@
         peopleList = dedupeStrings(remote.people);
         await savePeopleList();
         renderPersonSelects();
+        renderPersonFilterOptions();
       } else {
         needsSeeding = true;
       }
@@ -1634,26 +1633,49 @@
     return e.person === dashboardPersonFilter;
   }
 
-  personFilterOptions.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      personFilterOptions.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      const key = btn.dataset.person;
-      if(key === 'Other'){
-        personFilterOtherInput.style.display = '';
-        dashboardPersonFilter = personFilterOtherInput.value.trim() || 'Other';
-        personFilterOtherInput.focus();
-      } else {
-        personFilterOtherInput.style.display = 'none';
-        dashboardPersonFilter = key;
-      }
-      renderDashboard();
-    });
+  // Rebuilds the "Whose dashboard" button row from whatever is CURRENTLY in
+  // peopleList (the same with-whom/by-whom list that's synced to and from
+  // Google Sheets) — never a hardcoded name set. Always "All" first and
+  // "Other" last. If the active filter is a person no longer in the list,
+  // falls back to "All" rather than pointing at a name that's gone.
+  function renderPersonFilterOptions(){
+    const names = peopleList.slice();
+    const stillValid = dashboardPersonFilter === 'all' || dashboardPersonFilter === 'Other' || names.includes(dashboardPersonFilter);
+    if(!stillValid) dashboardPersonFilter = 'all';
+
+    const buttonsHtml = ['all', ...names, 'Other'].map(key=>{
+      const label = key === 'all' ? 'All' : key;
+      const isActive = dashboardPersonFilter === key || (key === 'Other' && dashboardPersonFilter !== 'all' && !names.includes(dashboardPersonFilter));
+      return `<button data-person="${escapeHtml(key)}" class="${isActive ? 'active' : ''}">${escapeHtml(label)}</button>`;
+    }).join('');
+    personFilterOptions.innerHTML = buttonsHtml;
+
+    const isCustomOther = dashboardPersonFilter !== 'all' && !names.includes(dashboardPersonFilter);
+    personFilterOtherInput.style.display = isCustomOther ? '' : 'none';
+    if(isCustomOther) personFilterOtherInput.value = dashboardPersonFilter;
+  }
+
+  // Delegated click handling — buttons are re-created on every render, so we
+  // listen on the (stable) container rather than on individual buttons.
+  personFilterOptions.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    const key = btn.dataset.person;
+    if(key === 'Other'){
+      dashboardPersonFilter = personFilterOtherInput.value.trim() || 'Other';
+      renderPersonFilterOptions();
+      personFilterOtherInput.focus();
+    } else {
+      dashboardPersonFilter = key;
+      renderPersonFilterOptions();
+    }
+    renderDashboard();
   });
   personFilterOtherInput.addEventListener('input', ()=>{
     dashboardPersonFilter = personFilterOtherInput.value.trim() || 'Other';
     renderDashboard();
   });
+  renderPersonFilterOptions();
 
   // ---------- Dashboard rendering ----------
   let chartIncomeCat, chartExpenseCat, chartTrend;
@@ -2369,6 +2391,7 @@
     peopleList[idx] = newName;
     await savePeopleList();
     renderPersonSelects();
+    renderPersonFilterOptions();
     showPeopleMgrMsg('');
     renderPeopleMgrList();
     pushToSheet();
@@ -2390,6 +2413,7 @@
     peopleList.push(name);
     await savePeopleList();
     renderPersonSelects(name, name);
+    renderPersonFilterOptions();
     peopleMgrNewInput.value = '';
     showPeopleMgrMsg('');
     renderPeopleMgrList();
@@ -2404,6 +2428,7 @@
     peopleList = peopleList.filter(p => p !== name);
     await savePeopleList();
     renderPersonSelects();
+    renderPersonFilterOptions();
     showPeopleMgrMsg('');
     renderPeopleMgrList();
     pushToSheet();
