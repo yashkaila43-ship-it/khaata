@@ -294,6 +294,15 @@
     text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
   }
 
+  /* Expense-by-description table: Description, Category, Entries, Total */
+  .desc-table-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+  .desc-table-head .section-title{margin:0;}
+  #table-expense-desc th:nth-child(2), #table-expense-desc td:nth-child(2){text-align:left;}
+  #table-expense-desc th:nth-child(3), #table-expense-desc td:nth-child(3){text-align:right;}
+  #table-expense-desc th:nth-child(4), #table-expense-desc td:nth-child(4){
+    text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
+  }
+
   .overview-card{padding:22px; margin-bottom:20px;}
   .overview-card p{font-size:14px; line-height:1.75; color:var(--ink-soft); margin:0 0 10px;}
   .overview-card p:last-child{margin-bottom:0;}
@@ -776,6 +785,17 @@
         <div class="section-title">Expense — by category</div>
         <table class="cat-table" id="table-expense"><thead><tr><th>Category</th><th>Total</th></tr></thead><tbody></tbody></table>
       </div>
+    </div>
+
+    <div class="card table-card" style="margin-bottom:20px;">
+      <div class="desc-table-head">
+        <div class="section-title">Expense — by description</div>
+        <div class="range-presets" id="desc-sort-toggle">
+          <button type="button" data-sort="desc" class="active">High to low</button>
+          <button type="button" data-sort="asc">Low to high</button>
+        </div>
+      </div>
+      <table class="cat-table" id="table-expense-desc"><thead><tr><th>Description</th><th>Category</th><th>Entries</th><th>Total</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card gap-card">
@@ -1623,6 +1643,56 @@
     });
   }
 
+  // Groups expense entries by description (case-insensitive, same key logic as the
+  // description autocomplete), pairing each with its most-used category, an entry
+  // count, and a summed total. Sort direction is controlled by the High to low /
+  // Low to high toggle above the table.
+  let descSortDir = 'desc';
+  const descSortToggle = document.getElementById('desc-sort-toggle');
+  if(descSortToggle){
+    descSortToggle.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        descSortToggle.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        descSortDir = btn.dataset.sort;
+        renderExpenseDescTable(lastExpEntries);
+      });
+    });
+  }
+
+  function renderExpenseDescTable(expEntries){
+    const tbody = document.querySelector('#table-expense-desc tbody');
+    if(!tbody) return;
+
+    const map = {};
+    expEntries.forEach(e=>{
+      const trimmed = (e.desc||'').trim();
+      if(!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if(!map[key]) map[key] = { desc: trimmed, count: 0, total: 0, catCounts: {} };
+      map[key].count += 1;
+      map[key].total += e.amount;
+      map[key].catCounts[e.category] = (map[key].catCounts[e.category]||0) + 1;
+    });
+
+    let rows = Object.values(map).map(v=>{
+      let bestCat = null, bestCount = -1;
+      Object.keys(v.catCounts).forEach(c=>{ if(v.catCounts[c] > bestCount){ bestCount = v.catCounts[c]; bestCat = c; } });
+      return { desc: v.desc, category: bestCat, count: v.count, total: v.total };
+    });
+
+    if(rows.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted); padding:14px 0;">No expense entries in this period</td></tr>';
+      return;
+    }
+
+    rows.sort((a,b)=> descSortDir === 'desc' ? b.total - a.total : a.total - b.total);
+
+    tbody.innerHTML = rows.map(r=>
+      `<tr><td>${escapeHtml(r.desc)}</td><td>${escapeHtml(r.category || '—')}</td><td>${r.count}</td><td>${fmtINR(r.total)}</td></tr>`
+    ).join('');
+  }
+
   function renderIncomeGapTable(){
     const tbody = document.querySelector('#table-income-gap tbody');
     if(!tbody) return;
@@ -1845,6 +1915,7 @@
     // tables
     renderCatTable('table-income', catTotalsInc, totalIncome, 'income');
     renderCatTable('table-expense', catTotalsExp, totalExpense, 'expense');
+    renderExpenseDescTable(expEntries);
     renderIncomeGapTable();
     renderOtherIncomeRecordTable(from, to);
     renderSalaryRecordTable(from, to);
