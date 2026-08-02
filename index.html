@@ -205,11 +205,6 @@
     display:flex; align-items:center; gap:16px; flex-wrap:wrap;
     padding:14px 20px; margin-bottom:14px;
   }
-  .person-filter-other-input{
-    padding:7px 12px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper);
-    font-family:'Inter',sans-serif; font-size:16px; color:var(--ink); outline:none; min-width:150px;
-  }
-  .person-filter-other-input:focus{border-color:var(--ink);}
   @media (max-width:600px){ .person-filter-bar{flex-direction:column; align-items:stretch;} }
 
   .range-presets{display:flex; gap:6px; flex-wrap:wrap;}
@@ -727,10 +722,8 @@
       <div class="eyebrow">Whose dashboard</div>
       <div class="range-presets" id="person-filter-options">
         <!-- Populated dynamically from the current people list (synced from Google
-             Sheets) — see renderPersonFilterOptions(). Always starts with "All"
-             and ends with "Other" for a free-text name. -->
+             Sheets) — see renderPersonFilterOptions(). Always starts with "All". -->
       </div>
-      <input type="text" id="person-filter-other-input" class="person-filter-other-input" placeholder="Enter name" style="display:none;">
     </div>
 
     <div class="range-bar">
@@ -1643,7 +1636,6 @@
   // always show every entry regardless of this filter.
   let dashboardPersonFilter = 'all';
   const personFilterOptions = document.getElementById('person-filter-options');
-  const personFilterOtherInput = document.getElementById('person-filter-other-input');
 
   function matchesPersonFilter(e){
     if(dashboardPersonFilter === 'all') return true;
@@ -1652,24 +1644,20 @@
 
   // Rebuilds the "Whose dashboard" button row from whatever is CURRENTLY in
   // peopleList (the same with-whom/by-whom list that's synced to and from
-  // Google Sheets) — never a hardcoded name set. Always "All" first and
-  // "Other" last. If the active filter is a person no longer in the list,
-  // falls back to "All" rather than pointing at a name that's gone.
+  // Google Sheets) — never a hardcoded name set. Always "All" first. If the
+  // active filter is a person no longer in the list, falls back to "All"
+  // rather than pointing at a name that's gone.
   function renderPersonFilterOptions(){
     const names = peopleList.slice();
-    const stillValid = dashboardPersonFilter === 'all' || dashboardPersonFilter === 'Other' || names.includes(dashboardPersonFilter);
+    const stillValid = dashboardPersonFilter === 'all' || names.includes(dashboardPersonFilter);
     if(!stillValid) dashboardPersonFilter = 'all';
 
-    const buttonsHtml = ['all', ...names, 'Other'].map(key=>{
+    const buttonsHtml = ['all', ...names].map(key=>{
       const label = key === 'all' ? 'All' : key;
-      const isActive = dashboardPersonFilter === key || (key === 'Other' && dashboardPersonFilter !== 'all' && !names.includes(dashboardPersonFilter));
+      const isActive = dashboardPersonFilter === key;
       return `<button data-person="${escapeHtml(key)}" class="${isActive ? 'active' : ''}">${escapeHtml(label)}</button>`;
     }).join('');
     personFilterOptions.innerHTML = buttonsHtml;
-
-    const isCustomOther = dashboardPersonFilter !== 'all' && !names.includes(dashboardPersonFilter);
-    personFilterOtherInput.style.display = isCustomOther ? '' : 'none';
-    if(isCustomOther) personFilterOtherInput.value = dashboardPersonFilter;
   }
 
   // Delegated click handling — buttons are re-created on every render, so we
@@ -1677,19 +1665,8 @@
   personFilterOptions.addEventListener('click', (e)=>{
     const btn = e.target.closest('button');
     if(!btn) return;
-    const key = btn.dataset.person;
-    if(key === 'Other'){
-      dashboardPersonFilter = personFilterOtherInput.value.trim() || 'Other';
-      renderPersonFilterOptions();
-      personFilterOtherInput.focus();
-    } else {
-      dashboardPersonFilter = key;
-      renderPersonFilterOptions();
-    }
-    renderDashboard();
-  });
-  personFilterOtherInput.addEventListener('input', ()=>{
-    dashboardPersonFilter = personFilterOtherInput.value.trim() || 'Other';
+    dashboardPersonFilter = btn.dataset.person;
+    renderPersonFilterOptions();
     renderDashboard();
   });
   renderPersonFilterOptions();
