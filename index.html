@@ -821,6 +821,10 @@
             <label>By whom <button type="button" class="pencil-btn" id="manage-people-btn-exp" title="Add, rename or remove names">✎</button></label>
             <select id="exp-person"></select>
           </div>
+          <div class="field">
+            <label>For whom <button type="button" class="pencil-btn" id="manage-people-btn-exp-forwhom" title="Add, rename or remove names">✎</button></label>
+            <select id="exp-forwhom"></select>
+          </div>
           <button type="submit" class="submit-btn">Add expense entry</button>
           <div class="sync-block-msg" id="exp-sync-msg">Waiting for Google Sheets to sync — entries can't be added until it reconnects.</div>
           <div class="form-msg" id="exp-msg">Entry added ✓</div>
@@ -852,6 +856,15 @@
       <div class="range-presets" id="person-filter-options">
         <!-- Populated dynamically from the current people list (synced from Google
              Sheets) — see renderPersonFilterOptions(). Always starts with "All". -->
+      </div>
+    </div>
+
+    <div class="card person-filter-bar" id="forwhom-filter-bar">
+      <div class="eyebrow">Expense — for whom</div>
+      <div class="range-presets" id="forwhom-filter-options">
+        <!-- Populated dynamically from the current people list — see
+             renderForWhomFilterOptions(). Always starts with "All". Filters
+             expense entries only, independently of "Whose dashboard" above. -->
       </div>
     </div>
 
@@ -1184,7 +1197,7 @@
     try{ localStorage.setItem(PEOPLE_KEY, JSON.stringify(peopleList)); }
     catch(e){ console.error('Saving people failed', e); }
   }
-  function renderPersonSelects(preferredIncValue, preferredExpValue){
+  function renderPersonSelects(preferredIncValue, preferredExpValue, preferredExpForWhomValue){
     const optionsHtml = peopleList.map(p => `<option>${escapeHtml(p)}</option>`).join('');
     const incSel = document.getElementById('inc-person');
     if(incSel){
@@ -1197,6 +1210,12 @@
       const cur = preferredExpValue || expSel.value;
       expSel.innerHTML = optionsHtml;
       if(cur && peopleList.includes(cur)) expSel.value = cur;
+    }
+    const expForWhomSel = document.getElementById('exp-forwhom');
+    if(expForWhomSel){
+      const cur = preferredExpForWhomValue || expForWhomSel.value;
+      expForWhomSel.innerHTML = optionsHtml;
+      if(cur && peopleList.includes(cur)) expForWhomSel.value = cur;
     }
   }
   loadPeopleList();
@@ -1344,6 +1363,7 @@
         await savePeopleList();
         renderPersonSelects();
         renderPersonFilterOptions();
+        renderForWhomFilterOptions();
       } else {
         needsSeeding = true;
       }
@@ -1419,6 +1439,7 @@
 
   const incPerson = document.getElementById('inc-person');
   const expPerson = document.getElementById('exp-person');
+  const expForWhom = document.getElementById('exp-forwhom');
 
   // ---------- Other Income turn field + conditional mode/whom + receipt status ----------
   const incCategory = document.getElementById('inc-category');
@@ -1599,6 +1620,7 @@
       category: document.getElementById('exp-category').value,
       mode: segVal('exp-mode'),
       person: expPerson.value,
+      forWhom: expForWhom.value,
       desc: document.getElementById('exp-desc').value.trim()
     };
     if(entry.amount <= 0) return;
@@ -1638,7 +1660,7 @@
 
     const filtered = searchTerm ? everything.filter(item=>{
       const hay = [
-        item.category, item.desc, item.mode, item.person, item.note,
+        item.category, item.desc, item.mode, item.person, item.forWhom, item.note,
         fmtDate(item.date)
       ].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(searchTerm);
@@ -1678,7 +1700,7 @@
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag dr">DR</span>${item.category}</div>
-            <div class="meta">${item.mode}${item.person? ' · '+escapeHtml(item.person):''}${item.desc? ' · '+escapeHtml(item.desc):''}</div>
+            <div class="meta">${item.mode}${item.person? ' · '+escapeHtml(item.person):''}${item.forWhom? ' · for '+escapeHtml(item.forWhom):''}${item.desc? ' · '+escapeHtml(item.desc):''}</div>
           </div>
           <div class="feed-amt dr">−${fmtINR(item.amount)}</div>
           <button class="feed-del" data-type="expense" data-id="${item.id}" title="Delete">×</button>
@@ -1799,6 +1821,40 @@
     renderDashboard();
   });
   renderPersonFilterOptions();
+
+  // ---------- Dashboard: "expense — for whom" filter ----------
+  // Independent of the "Whose dashboard" filter above. 'all' = no filter.
+  // Otherwise holds the exact person string that expense.forWhom must match.
+  // Applies to expense entries only (income has no "for whom" concept).
+  let dashboardForWhomFilter = 'all';
+  const forWhomFilterOptions = document.getElementById('forwhom-filter-options');
+
+  function matchesForWhomFilter(e){
+    if(dashboardForWhomFilter === 'all') return true;
+    return e.forWhom === dashboardForWhomFilter;
+  }
+
+  function renderForWhomFilterOptions(){
+    const names = peopleList.slice();
+    const stillValid = dashboardForWhomFilter === 'all' || names.includes(dashboardForWhomFilter);
+    if(!stillValid) dashboardForWhomFilter = 'all';
+
+    const buttonsHtml = ['all', ...names].map(key=>{
+      const label = key === 'all' ? 'All' : key;
+      const isActive = dashboardForWhomFilter === key;
+      return `<button data-person="${escapeHtml(key)}" class="${isActive ? 'active' : ''}">${escapeHtml(label)}</button>`;
+    }).join('');
+    forWhomFilterOptions.innerHTML = buttonsHtml;
+  }
+
+  forWhomFilterOptions.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    dashboardForWhomFilter = btn.dataset.person;
+    renderForWhomFilterOptions();
+    renderDashboard();
+  });
+  renderForWhomFilterOptions();
 
   // ---------- Dashboard rendering ----------
   let chartIncomeCat, chartExpenseCat, chartTrend;
@@ -2078,7 +2134,7 @@
     if(from > to){ [from, to] = [to, from]; }
 
     const incEntries = DATA.income.filter(e=>inRange(e.date, from, to) && isCountableIncome(e) && matchesPersonFilter(e));
-    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to) && matchesPersonFilter(e));
+    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to) && matchesPersonFilter(e) && matchesForWhomFilter(e));
 
     const totalIncome = incEntries.reduce((s,e)=>s+e.amount,0);
     const totalExpense = expEntries.reduce((s,e)=>s+e.amount,0);
@@ -2216,7 +2272,7 @@
         const yr = String(d.getFullYear()).slice(2);
         const label = isIncome
           ? [item.mode, item.person].filter(Boolean).join(' · ') || '—'
-          : (item.desc || '—');
+          : [item.desc, item.forWhom ? ('for '+item.forWhom) : null].filter(Boolean).join(' · ') || '—';
         return `<div class="drill-row">
           <div class="d-date"><b>${day}</b>${mon} '${yr}</div>
           <div class="d-main">
@@ -2233,7 +2289,7 @@
         const yr = String(d.getFullYear()).slice(2);
         const metaBits = isIncome
           ? [item.mode, item.person, item.note].filter(Boolean)
-          : [item.mode, item.person, item.desc].filter(Boolean);
+          : [item.mode, item.person, item.forWhom ? ('for '+item.forWhom) : null, item.desc].filter(Boolean);
         return `<div class="drill-row">
           <div class="d-date"><b>${day}</b>${mon} '${yr}</div>
           <div class="d-main">
@@ -2266,7 +2322,7 @@
         const day = d.getDate().toString().padStart(2,'0');
         const mon = d.toLocaleDateString('en-IN', {month:'short'});
         const yr = String(d.getFullYear()).slice(2);
-        const metaBits = [item.mode, item.person, item.category].filter(Boolean);
+        const metaBits = [item.mode, item.person, item.forWhom ? ('for '+item.forWhom) : null, item.category].filter(Boolean);
         return `<div class="drill-row">
           <div class="d-date"><b>${day}</b>${mon} '${yr}</div>
           <div class="d-main">
@@ -2452,7 +2508,8 @@
   // A name is "in use" once it appears on any income or expense entry — counted
   // across both, since the same list feeds "with whom" and "by whom".
   function personEntryCount(name){
-    return DATA.income.filter(e => e.person === name).length + DATA.expense.filter(e => e.person === name).length;
+    return DATA.income.filter(e => e.person === name).length
+      + DATA.expense.filter(e => e.person === name || e.forWhom === name).length;
   }
 
   function showPeopleMgrMsg(text){
@@ -2515,6 +2572,7 @@
     await savePeopleList();
     renderPersonSelects();
     renderPersonFilterOptions();
+    renderForWhomFilterOptions();
     showPeopleMgrMsg('');
     renderPeopleMgrList();
     pushToSheet();
@@ -2535,8 +2593,9 @@
     if(exists){ showPeopleMgrMsg('That name already exists.'); return; }
     peopleList.push(name);
     await savePeopleList();
-    renderPersonSelects(name, name);
+    renderPersonSelects(name, name, name);
     renderPersonFilterOptions();
+    renderForWhomFilterOptions();
     peopleMgrNewInput.value = '';
     showPeopleMgrMsg('');
     renderPeopleMgrList();
@@ -2552,6 +2611,7 @@
     await savePeopleList();
     renderPersonSelects();
     renderPersonFilterOptions();
+    renderForWhomFilterOptions();
     showPeopleMgrMsg('');
     renderPeopleMgrList();
     pushToSheet();
@@ -2559,6 +2619,7 @@
 
   document.getElementById('manage-people-btn-inc').addEventListener('click', openPeopleManager);
   document.getElementById('manage-people-btn-exp').addEventListener('click', openPeopleManager);
+  document.getElementById('manage-people-btn-exp-forwhom').addEventListener('click', openPeopleManager);
   document.getElementById('people-mgr-close-btn').addEventListener('click', closePeopleManager);
   document.getElementById('people-mgr-add-btn').addEventListener('click', addPerson);
   peopleMgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addPerson(); } });
