@@ -1062,6 +1062,24 @@
   </div>
 </div>
 
+<div class="catmgr-overlay" id="forwhom-mgr-overlay">
+  <div class="catmgr-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>People — for whom</h3>
+        <div class="catmgr-sub">Only used by the expense "For whom" field — completely separate from the with-whom/by-whom list above. Names with existing entries can't be renamed or removed.</div>
+      </div>
+      <button class="catmgr-close" id="forwhom-mgr-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="forwhom-mgr-list"></div>
+    <div class="catmgr-msg" id="forwhom-mgr-msg"></div>
+    <div class="catmgr-add">
+      <input type="text" id="forwhom-mgr-new-input" placeholder="New name">
+      <button type="button" id="forwhom-mgr-add-btn">Add</button>
+    </div>
+  </div>
+</div>
+
 <div class="catmgr-overlay" id="pending-overlay">
   <div class="catmgr-modal pending-modal">
     <div class="catmgr-head">
@@ -1197,7 +1215,7 @@
     try{ localStorage.setItem(PEOPLE_KEY, JSON.stringify(peopleList)); }
     catch(e){ console.error('Saving people failed', e); }
   }
-  function renderPersonSelects(preferredIncValue, preferredExpValue, preferredExpForWhomValue){
+  function renderPersonSelects(preferredIncValue, preferredExpValue){
     const optionsHtml = peopleList.map(p => `<option>${escapeHtml(p)}</option>`).join('');
     const incSel = document.getElementById('inc-person');
     if(incSel){
@@ -1211,15 +1229,42 @@
       expSel.innerHTML = optionsHtml;
       if(cur && peopleList.includes(cur)) expSel.value = cur;
     }
-    const expForWhomSel = document.getElementById('exp-forwhom');
-    if(expForWhomSel){
-      const cur = preferredExpForWhomValue || expForWhomSel.value;
-      expForWhomSel.innerHTML = optionsHtml;
-      if(cur && peopleList.includes(cur)) expForWhomSel.value = cur;
-    }
   }
   loadPeopleList();
   renderPersonSelects();
+
+  // ---------- People — "for whom" (expense only), a SEPARATE, independent list ----------
+  // Deliberately its own storage key, its own default seed, and its own manager
+  // modal — adding/renaming/removing a name here never touches peopleList above,
+  // and vice versa.
+  const FORWHOM_PEOPLE_KEY = 'khaata-forwhom-people';
+  const DEFAULT_FORWHOM_PEOPLE = ['Yash','Dad','Mom'];
+  let forWhomPeopleList = DEFAULT_FORWHOM_PEOPLE.slice();
+
+  async function loadForWhomPeopleList(){
+    try{
+      const raw = localStorage.getItem(FORWHOM_PEOPLE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed) && parsed.length){ forWhomPeopleList = dedupeStrings(parsed); return; }
+      }
+    }catch(e){ /* fall back to defaults */ }
+    forWhomPeopleList = DEFAULT_FORWHOM_PEOPLE.slice();
+    await saveForWhomPeopleList();
+  }
+  async function saveForWhomPeopleList(){
+    try{ localStorage.setItem(FORWHOM_PEOPLE_KEY, JSON.stringify(forWhomPeopleList)); }
+    catch(e){ console.error('Saving for-whom people failed', e); }
+  }
+  function renderForWhomSelect(preferredValue){
+    const sel = document.getElementById('exp-forwhom');
+    if(!sel) return;
+    const cur = preferredValue || sel.value;
+    sel.innerHTML = forWhomPeopleList.map(p => `<option>${escapeHtml(p)}</option>`).join('');
+    if(cur && forWhomPeopleList.includes(cur)) sel.value = cur;
+  }
+  loadForWhomPeopleList();
+  renderForWhomSelect();
 
   const fmtINR = (n) => new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', maximumFractionDigits:0}).format(n || 0);
   const fmtDate = (iso) => { const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}); };
@@ -1363,14 +1408,21 @@
         await savePeopleList();
         renderPersonSelects();
         renderPersonFilterOptions();
+      } else {
+        needsSeeding = true;
+      }
+      if(Array.isArray(remote.forWhomPeople) && remote.forWhomPeople.length){
+        forWhomPeopleList = dedupeStrings(remote.forWhomPeople);
+        await saveForWhomPeopleList();
+        renderForWhomSelect();
         renderForWhomFilterOptions();
       } else {
         needsSeeding = true;
       }
       if(needsSeeding){
-        // Sheet is missing one or more of the Categories/IncomeCategories/People
-        // tabs (first run after this update) — seed it with whatever this device
-        // currently has.
+        // Sheet is missing one or more of the Categories/IncomeCategories/People/
+        // ForWhomPeople tabs (first run after this update) — seed it with
+        // whatever this device currently has.
         pushToSheet();
       }
       setSyncState('linked', 'Synced');
@@ -1389,7 +1441,8 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           income: DATA.income, expense: DATA.expense,
-          categories: expenseCategories, incomeCategories: incomeCategories, people: peopleList
+          categories: expenseCategories, incomeCategories: incomeCategories,
+          people: peopleList, forWhomPeople: forWhomPeopleList
         })
       });
       if(!res.ok) throw new Error('Request failed: ' + res.status);
@@ -1835,7 +1888,7 @@
   }
 
   function renderForWhomFilterOptions(){
-    const names = peopleList.slice();
+    const names = forWhomPeopleList.slice();
     const stillValid = dashboardForWhomFilter === 'all' || names.includes(dashboardForWhomFilter);
     if(!stillValid) dashboardForWhomFilter = 'all';
 
@@ -2505,11 +2558,13 @@
   const peopleMgrMsg = document.getElementById('people-mgr-msg');
   const peopleMgrNewInput = document.getElementById('people-mgr-new-input');
 
-  // A name is "in use" once it appears on any income or expense entry — counted
-  // across both, since the same list feeds "with whom" and "by whom".
+  // A name is "in use" once it appears as "with whom" (income) or "by whom"
+  // (expense) on any entry — counted across both, since the same list feeds
+  // both fields. Deliberately does NOT look at expense.forWhom — that's a
+  // fully separate list with its own manager below.
   function personEntryCount(name){
     return DATA.income.filter(e => e.person === name).length
-      + DATA.expense.filter(e => e.person === name || e.forWhom === name).length;
+      + DATA.expense.filter(e => e.person === name).length;
   }
 
   function showPeopleMgrMsg(text){
@@ -2572,7 +2627,6 @@
     await savePeopleList();
     renderPersonSelects();
     renderPersonFilterOptions();
-    renderForWhomFilterOptions();
     showPeopleMgrMsg('');
     renderPeopleMgrList();
     pushToSheet();
@@ -2593,9 +2647,8 @@
     if(exists){ showPeopleMgrMsg('That name already exists.'); return; }
     peopleList.push(name);
     await savePeopleList();
-    renderPersonSelects(name, name, name);
+    renderPersonSelects(name, name);
     renderPersonFilterOptions();
-    renderForWhomFilterOptions();
     peopleMgrNewInput.value = '';
     showPeopleMgrMsg('');
     renderPeopleMgrList();
@@ -2611,7 +2664,6 @@
     await savePeopleList();
     renderPersonSelects();
     renderPersonFilterOptions();
-    renderForWhomFilterOptions();
     showPeopleMgrMsg('');
     renderPeopleMgrList();
     pushToSheet();
@@ -2619,11 +2671,130 @@
 
   document.getElementById('manage-people-btn-inc').addEventListener('click', openPeopleManager);
   document.getElementById('manage-people-btn-exp').addEventListener('click', openPeopleManager);
-  document.getElementById('manage-people-btn-exp-forwhom').addEventListener('click', openPeopleManager);
   document.getElementById('people-mgr-close-btn').addEventListener('click', closePeopleManager);
   document.getElementById('people-mgr-add-btn').addEventListener('click', addPerson);
   peopleMgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addPerson(); } });
   peopleMgrOverlay.addEventListener('click', (e)=>{ if(e.target === peopleMgrOverlay) closePeopleManager(); });
+
+  // ---------- For-whom manager (independent list, expense-only) ----------
+  // Structurally identical to the manager above, but points at forWhomPeopleList
+  // and expense.forWhom instead — no shared state with the with-whom/by-whom list.
+  const forWhomMgrOverlay = document.getElementById('forwhom-mgr-overlay');
+  const forWhomMgrList = document.getElementById('forwhom-mgr-list');
+  const forWhomMgrMsg = document.getElementById('forwhom-mgr-msg');
+  const forWhomMgrNewInput = document.getElementById('forwhom-mgr-new-input');
+
+  function forWhomEntryCount(name){
+    return DATA.expense.filter(e => e.forWhom === name).length;
+  }
+
+  function showForWhomMgrMsg(text){
+    forWhomMgrMsg.textContent = text;
+    forWhomMgrMsg.classList.toggle('show', !!text);
+  }
+
+  function renderForWhomMgrList(){
+    if(forWhomPeopleList.length === 0){
+      forWhomMgrList.innerHTML = '<div class="drill-empty">No names yet.</div>';
+      return;
+    }
+    forWhomMgrList.innerHTML = forWhomPeopleList.map(name=>{
+      const count = forWhomEntryCount(name);
+      const locked = count > 0;
+      const disabled = locked ? 'disabled' : '';
+      const title = locked ? `In use by ${count} ${count===1?'entry':'entries'} — can't rename or remove` : '';
+      return `<div class="catmgr-row" data-name="${escapeHtml(name)}">
+        <span class="cname">${escapeHtml(name)}</span>
+        <span class="ccount">${count} ${count===1?'entry':'entries'}</span>
+        <button class="cedit" data-name="${escapeHtml(name)}" ${disabled} title="${title || 'Rename'}">✎</button>
+        <button class="cdel" data-name="${escapeHtml(name)}" ${disabled} title="${title || 'Remove'}">×</button>
+      </div>`;
+    }).join('');
+    forWhomMgrList.querySelectorAll('.cdel').forEach(btn=>{
+      btn.addEventListener('click', ()=> removeForWhomPerson(btn.dataset.name));
+    });
+    forWhomMgrList.querySelectorAll('.cedit').forEach(btn=>{
+      btn.addEventListener('click', ()=> startEditForWhomPerson(btn.dataset.name));
+    });
+  }
+
+  function startEditForWhomPerson(name){
+    if(forWhomEntryCount(name) > 0) return;
+    const row = forWhomMgrList.querySelector(`.catmgr-row[data-name="${CSS.escape(name)}"]`);
+    if(!row) return;
+    row.innerHTML = `<input type="text" class="cname-edit" value="${escapeHtml(name)}">
+      <button class="cedit" title="Save">✓</button>
+      <button class="cdel" title="Cancel">×</button>`;
+    const input = row.querySelector('.cname-edit');
+    input.focus();
+    input.select();
+    const commit = ()=> commitEditForWhomPerson(name, input.value.trim());
+    row.querySelector('.cedit').addEventListener('click', commit);
+    row.querySelector('.cdel').addEventListener('click', ()=> renderForWhomMgrList());
+    input.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+      if(e.key === 'Escape'){ e.preventDefault(); renderForWhomMgrList(); }
+    });
+  }
+
+  async function commitEditForWhomPerson(oldName, newName){
+    if(!newName){ showForWhomMgrMsg('Enter a name.'); renderForWhomMgrList(); return; }
+    const exists = forWhomPeopleList.some(p => p.toLowerCase() === newName.toLowerCase() && p !== oldName);
+    if(exists){ showForWhomMgrMsg('That name already exists.'); renderForWhomMgrList(); return; }
+    if(forWhomEntryCount(oldName) > 0){ showForWhomMgrMsg(`Can't rename "${oldName}" — it has existing entries.`); renderForWhomMgrList(); return; }
+    const idx = forWhomPeopleList.indexOf(oldName);
+    if(idx === -1){ renderForWhomMgrList(); return; }
+    forWhomPeopleList[idx] = newName;
+    await saveForWhomPeopleList();
+    renderForWhomSelect();
+    renderForWhomFilterOptions();
+    showForWhomMgrMsg('');
+    renderForWhomMgrList();
+    pushToSheet();
+  }
+
+  function openForWhomManager(){
+    showForWhomMgrMsg('');
+    forWhomMgrNewInput.value = '';
+    renderForWhomMgrList();
+    forWhomMgrOverlay.classList.add('show');
+  }
+  function closeForWhomManager(){ forWhomMgrOverlay.classList.remove('show'); }
+
+  async function addForWhomPerson(){
+    const name = forWhomMgrNewInput.value.trim();
+    if(!name){ showForWhomMgrMsg('Enter a name.'); return; }
+    const exists = forWhomPeopleList.some(p => p.toLowerCase() === name.toLowerCase());
+    if(exists){ showForWhomMgrMsg('That name already exists.'); return; }
+    forWhomPeopleList.push(name);
+    await saveForWhomPeopleList();
+    renderForWhomSelect(name);
+    renderForWhomFilterOptions();
+    forWhomMgrNewInput.value = '';
+    showForWhomMgrMsg('');
+    renderForWhomMgrList();
+    pushToSheet();
+  }
+
+  async function removeForWhomPerson(name){
+    if(forWhomEntryCount(name) > 0){
+      showForWhomMgrMsg(`Can't remove "${name}" — it has existing entries.`);
+      return;
+    }
+    forWhomPeopleList = forWhomPeopleList.filter(p => p !== name);
+    await saveForWhomPeopleList();
+    renderForWhomSelect();
+    renderForWhomFilterOptions();
+    showForWhomMgrMsg('');
+    renderForWhomMgrList();
+    pushToSheet();
+  }
+
+  document.getElementById('manage-people-btn-exp-forwhom').addEventListener('click', openForWhomManager);
+  document.getElementById('forwhom-mgr-close-btn').addEventListener('click', closeForWhomManager);
+  document.getElementById('forwhom-mgr-add-btn').addEventListener('click', addForWhomPerson);
+  forWhomMgrNewInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addForWhomPerson(); } });
+  forWhomMgrOverlay.addEventListener('click', (e)=>{ if(e.target === forWhomMgrOverlay) closeForWhomManager(); });
 
   // ---------- Pending Other Income settlement ----------
   const pendingAlertCard = document.getElementById('pending-alert-card');
