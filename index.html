@@ -773,6 +773,13 @@
               <button type="button" data-val="Cash">Cash</button>
             </div>
           </div>
+          <div class="field" id="inc-credited-field" style="display:none;">
+            <label>Credited to account?</label>
+            <div class="seg" id="inc-credited">
+              <button type="button" data-val="yes" class="active">Yes</button>
+              <button type="button" data-val="no">No</button>
+            </div>
+          </div>
           <div class="field" id="inc-person-field">
             <label>With whom <button type="button" class="pencil-btn" id="manage-people-btn-inc" title="Add, rename or remove names">✎</button></label>
             <select id="inc-person"></select>
@@ -924,6 +931,14 @@
         <div class="headline" id="pending-alert-headline">Other Income — receipt details pending</div>
       </div>
       <div class="detail" id="pending-alert-detail">Tap to add bank/cash and person details.</div>
+    </div>
+
+    <div class="card alert-card medium pending-alert-card" id="salary-credit-alert-card" style="display:none; cursor:pointer;">
+      <div>
+        <div class="badge"><span class="dot"></span><span id="salary-credit-alert-badge">PENDING</span></div>
+        <div class="headline" id="salary-credit-alert-headline">Salary — credit confirmation pending</div>
+      </div>
+      <div class="detail" id="salary-credit-alert-detail">Tap to confirm once credited.</div>
     </div>
 
     <div class="chart-grid">
@@ -1090,6 +1105,19 @@
       <button class="catmgr-close" id="pending-close-btn">&times;</button>
     </div>
     <div class="catmgr-list" id="pending-list"></div>
+  </div>
+</div>
+
+<div class="catmgr-overlay" id="salary-credit-overlay">
+  <div class="catmgr-modal pending-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>Salary — pending credit confirmation</h3>
+        <div class="catmgr-sub">Confirm once the amount actually reflects in the bank account.</div>
+      </div>
+      <button class="catmgr-close" id="salary-credit-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="salary-credit-list"></div>
   </div>
 </div>
 
@@ -1299,6 +1327,7 @@
   function isCountableIncome(e){
     if(e.category === 'Other Income' && e.otherPerson && e.otherPerson !== OTHER_INCOME_OWNER) return false;
     if(e.category === 'Other Income' && e.otherPerson === OTHER_INCOME_OWNER && (!e.mode || !e.person)) return false;
+    if(e.category === 'Salary' && e.mode === 'Bank' && e.creditPending) return false;
     return true;
   }
 
@@ -1488,6 +1517,7 @@
   }
   wireSeg('inc-mode');
   wireSeg('exp-mode');
+  wireSeg('inc-credited');
   function segVal(id){ return document.querySelector('#'+id+' button.active').dataset.val; }
 
   const incPerson = document.getElementById('inc-person');
@@ -1533,7 +1563,24 @@
     resetReceivedTiming();
     syncOtherIncomeFieldsVisibility();
   }
+  // Salary paid into the Bank isn't always credited the same day it's entered —
+  // this lets the entry be saved right away while flagging it as not-yet-credited,
+  // so it stays out of every total/calculation until confirmed via the alert tab.
+  const incCreditedField = document.getElementById('inc-credited-field');
+  function resetCreditedSeg(){
+    document.querySelectorAll('#inc-credited button').forEach(b=> b.classList.toggle('active', b.dataset.val === 'yes'));
+  }
+  function syncCreditedFieldVisibility(){
+    const isSalary = incCategory.value === 'Salary';
+    const isBank = segVal('inc-mode') === 'Bank';
+    const show = isSalary && isBank;
+    incCreditedField.style.display = show ? '' : 'none';
+    if(!show) resetCreditedSeg();
+  }
+  document.querySelectorAll('#inc-mode button').forEach(b=> b.addEventListener('click', syncCreditedFieldVisibility));
+
   incCategory.addEventListener('change', syncOtherPersonField);
+  incCategory.addEventListener('change', syncCreditedFieldVisibility);
   incOtherPerson.addEventListener('input', ()=>{ resetReceivedTiming(); syncOtherIncomeFieldsVisibility(); });
   document.querySelectorAll('#inc-received-timing button').forEach(b=>{
     b.addEventListener('click', ()=>{
@@ -1543,6 +1590,7 @@
     });
   });
   syncOtherPersonField();
+  syncCreditedFieldVisibility();
 
   // default dates to today
   document.getElementById('inc-date').value = todayISO();
@@ -1571,6 +1619,9 @@
       entry.person = incPerson.value;
     }
     if(isJayantilal) entry.pending = (timing === 'later');
+    if(category === 'Salary' && entry.mode === 'Bank' && segVal('inc-credited') === 'no'){
+      entry.creditPending = true;
+    }
 
     if(entry.amount <= 0) return;
     DATA.income.push(entry);
@@ -1579,9 +1630,11 @@
     document.getElementById('inc-date').value = todayISO();
     syncOtherPersonField();
     document.querySelector('#inc-mode button[data-val="Bank"]').click();
+    syncCreditedFieldVisibility();
     flashMsg('inc-msg');
     renderFeed();
     renderPendingAlert();
+    renderSalaryCreditAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -1739,11 +1792,12 @@
       const mon = d.toLocaleDateString('en-IN', {month:'short'});
       const yr = d.getFullYear();
       if(item.type === 'income'){
+        const creditNote = item.creditPending ? ' · <span style="color:var(--amber); font-weight:600;">not credited yet</span>' : '';
         return `<div class="feed-row">
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag cr">CR</span>${item.category}</div>
-            <div class="meta">${item.mode} · ${item.person}${item.note? ' · '+escapeHtml(item.note):''}</div>
+            <div class="meta">${item.mode} · ${item.person}${item.note? ' · '+escapeHtml(item.note):''}${creditNote}</div>
           </div>
           <div class="feed-amt cr">+${fmtINR(item.amount)}</div>
           <button class="feed-del" data-type="income" data-id="${item.id}" title="Delete">×</button>
@@ -2263,6 +2317,7 @@
     renderOtherIncomeRecordTable(from, to);
     renderSalaryRecordTable(from, to);
     renderPendingAlert();
+    renderSalaryCreditAlert();
 
     // trend
     const dates = buildDateList(from, to);
@@ -2882,6 +2937,67 @@
   document.getElementById('pending-close-btn').addEventListener('click', closePendingOverlay);
   pendingOverlay.addEventListener('click', (e)=>{ if(e.target === pendingOverlay) closePendingOverlay(); });
 
+  // ---------- Pending Salary credit confirmation ----------
+  // Salary entered as "Received in: Bank" but marked "Credited to account? No" is
+  // saved right away (so nothing is lost) but excluded from every total via
+  // isCountableIncome — it only starts counting once confirmed here with a tap.
+  const salaryCreditAlertCard = document.getElementById('salary-credit-alert-card');
+  const salaryCreditOverlay = document.getElementById('salary-credit-overlay');
+  const salaryCreditList = document.getElementById('salary-credit-list');
+
+  function getSalaryCreditPendingEntries(){
+    return DATA.income.filter(e => e.category === 'Salary' && e.mode === 'Bank' && e.creditPending);
+  }
+
+  function renderSalaryCreditAlert(){
+    const pending = getSalaryCreditPendingEntries();
+    if(pending.length === 0){ salaryCreditAlertCard.style.display = 'none'; return; }
+    salaryCreditAlertCard.style.display = '';
+    const total = pending.reduce((s,e)=>s+e.amount,0);
+    document.getElementById('salary-credit-alert-detail').textContent =
+      `${pending.length} ${pending.length===1?'entry':'entries'} totalling ${fmtINR(total)} — tap to confirm once credited.`;
+  }
+
+  function renderSalaryCreditList(){
+    const pending = getSalaryCreditPendingEntries().slice().sort((a,b)=> b.date.localeCompare(a.date));
+    if(pending.length === 0){
+      salaryCreditList.innerHTML = '<div class="pending-empty">Nothing pending — all caught up.</div>';
+      return;
+    }
+    salaryCreditList.innerHTML = pending.map(e=>{
+      const noteHtml = e.note ? `<div class="pending-row-note">${escapeHtml(e.note)}</div>` : '';
+      return `<div class="pending-row" data-id="${e.id}">
+        <div class="pending-row-top"><div class="pending-row-date">${fmtDate(e.date)}</div><div class="pending-row-amt">+${fmtINR(e.amount)}</div></div>
+        ${noteHtml}
+        <div class="pending-settle">
+          <button type="button" class="pending-update-btn salary-credit-yes-btn" data-id="${e.id}">Yes, credited</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    salaryCreditList.querySelectorAll('.salary-credit-yes-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.id;
+        const entry = DATA.income.find(e => e.id === id);
+        if(!entry) return;
+        entry.creditPending = false;
+        await saveData();
+        renderSalaryCreditList();
+        renderSalaryCreditAlert();
+        renderFeed();
+        if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+        pushToSheet();
+      });
+    });
+  }
+
+  function openSalaryCreditOverlay(){ renderSalaryCreditList(); salaryCreditOverlay.classList.add('show'); }
+  function closeSalaryCreditOverlay(){ salaryCreditOverlay.classList.remove('show'); }
+
+  salaryCreditAlertCard.addEventListener('click', openSalaryCreditOverlay);
+  document.getElementById('salary-credit-close-btn').addEventListener('click', closeSalaryCreditOverlay);
+  salaryCreditOverlay.addEventListener('click', (e)=>{ if(e.target === salaryCreditOverlay) closeSalaryCreditOverlay(); });
+
   // ---------- Login ----------
   const AUTH_KEY = 'khaata-remember-auth';
   const LOGIN_ID = '21122003';   // 21 12 2003, digits only
@@ -2933,11 +3049,13 @@
     renderExpenseCategorySelect();
     renderFeed();
     renderPendingAlert();
+    renderSalaryCreditAlert();
     setPreset('month');
     await pullFromSheet();
     renderExpenseCategorySelect();
     renderFeed();
     renderPendingAlert();
+    renderSalaryCreditAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
   })();
 
