@@ -773,6 +773,13 @@
               <button type="button" data-val="Cash">Cash</button>
             </div>
           </div>
+          <div class="field" id="inc-bank-receipt-field" style="display:none;">
+            <label>Received via</label>
+            <div class="seg" id="inc-bank-receipt">
+              <button type="button" data-val="Cheque" class="active">Cheque</button>
+              <button type="button" data-val="Cash Deposit">Cash Deposit</button>
+            </div>
+          </div>
           <div class="field" id="inc-credited-field" style="display:none;">
             <label>Credited to account?</label>
             <div class="seg" id="inc-credited">
@@ -1518,6 +1525,7 @@
   wireSeg('inc-mode');
   wireSeg('exp-mode');
   wireSeg('inc-credited');
+  wireSeg('inc-bank-receipt');
   function segVal(id){ return document.querySelector('#'+id+' button.active').dataset.val; }
 
   const incPerson = document.getElementById('inc-person');
@@ -1567,8 +1575,15 @@
   // this lets the entry be saved right away while flagging it as not-yet-credited,
   // so it stays out of every total/calculation until confirmed via the alert tab.
   const incCreditedField = document.getElementById('inc-credited-field');
+  const incBankReceiptField = document.getElementById('inc-bank-receipt-field');
   function resetCreditedSeg(){
     document.querySelectorAll('#inc-credited button').forEach(b=> b.classList.toggle('active', b.dataset.val === 'yes'));
+  }
+  // How a Bank-received Salary entry actually reached the bank — Cheque or Cash
+  // Deposit. Purely informational: it rides alongside "Credited to account?"
+  // without changing that field's behaviour at all.
+  function resetBankReceiptSeg(){
+    document.querySelectorAll('#inc-bank-receipt button').forEach(b=> b.classList.toggle('active', b.dataset.val === 'Cheque'));
   }
   function syncCreditedFieldVisibility(){
     const isSalary = incCategory.value === 'Salary';
@@ -1576,6 +1591,8 @@
     const show = isSalary && isBank;
     incCreditedField.style.display = show ? '' : 'none';
     if(!show) resetCreditedSeg();
+    incBankReceiptField.style.display = show ? '' : 'none';
+    if(!show) resetBankReceiptSeg();
   }
   document.querySelectorAll('#inc-mode button').forEach(b=> b.addEventListener('click', syncCreditedFieldVisibility));
 
@@ -1619,6 +1636,9 @@
       entry.person = incPerson.value;
     }
     if(isJayantilal) entry.pending = (timing === 'later');
+    if(category === 'Salary' && entry.mode === 'Bank'){
+      entry.bankReceiptType = segVal('inc-bank-receipt'); // 'Cheque' or 'Cash Deposit'
+    }
     if(category === 'Salary' && entry.mode === 'Bank' && segVal('inc-credited') === 'no'){
       entry.creditPending = true;
     }
@@ -1793,11 +1813,12 @@
       const yr = d.getFullYear();
       if(item.type === 'income'){
         const creditNote = item.creditPending ? ' · <span style="color:var(--amber); font-weight:600;">not credited yet</span>' : '';
+        const modeLabel = item.bankReceiptType ? `${item.mode} (${item.bankReceiptType})` : item.mode;
         return `<div class="feed-row">
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag cr">CR</span>${item.category}</div>
-            <div class="meta">${item.mode} · ${item.person}${item.note? ' · '+escapeHtml(item.note):''}${creditNote}</div>
+            <div class="meta">${modeLabel} · ${item.person}${item.note? ' · '+escapeHtml(item.note):''}${creditNote}</div>
           </div>
           <div class="feed-amt cr">+${fmtINR(item.amount)}</div>
           <button class="feed-del" data-type="income" data-id="${item.id}" title="Delete">×</button>
