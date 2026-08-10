@@ -2154,7 +2154,9 @@
     const everything = [
       ...DATA.income.map(x=>({...x, type:'income'})),
       ...DATA.expense.map(x=>({...x, type:'expense'}))
-    ].sort((a,b)=> b.date.localeCompare(a.date) || 0);
+    // Newest date first; for entries logged on the same date, the one added most
+    // recently (by id, which is time-ordered) shows above the older one.
+    ].sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
     const filtered = searchTerm ? everything.filter(item=>{
       const hay = [
@@ -2562,13 +2564,15 @@
     const allOther = DATA.income
       .filter(e=> e.category === 'Other Income')
       .slice()
-      .sort((a,b)=> a.date.localeCompare(b.date));
+      .sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
     renderOverallGap('other-income-overall', allOther);
 
+    // Newest date first; for entries logged on the same date, the one added most
+    // recently (by id, which is time-ordered) shows above the older one.
     const entries = allOther
       .filter(e=> inRange(e.date, from, to))
-      .sort((a,b)=> b.date.localeCompare(a.date));
+      .sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
     if(entries.length === 0){
       tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted); padding:14px 0;">No Other Income entries in this period</td></tr>';
@@ -2590,13 +2594,15 @@
     const allSalary = DATA.income
       .filter(e=> e.category === 'Salary')
       .slice()
-      .sort((a,b)=> a.date.localeCompare(b.date));
+      .sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
     renderOverallGap('salary-overall', allSalary);
 
+    // Newest date first; for entries logged on the same date, the one added most
+    // recently (by id, which is time-ordered) shows above the older one.
     const entries = allSalary
       .filter(e=> inRange(e.date, from, to))
-      .sort((a,b)=> b.date.localeCompare(a.date));
+      .sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
     if(entries.length === 0){
       tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted); padding:14px 0;">No Salary entries in this period</td></tr>';
