@@ -2187,12 +2187,33 @@
       const yr = d.getFullYear();
       if(item.type === 'income'){
         const creditNote = item.creditPending ? ' · <span style="color:var(--amber); font-weight:600;">not credited yet</span>' : '';
-        const modeLabel = item.bankReceiptType ? `${item.mode} (${item.bankReceiptType})` : item.mode;
+        let metaMain;
+        if(item.category === 'Other Income'){
+          // Other Income never shows a generic mode/person line — instead it leads
+          // with whose turn the entry belongs to, and only for Jayantilal Kaila
+          // (and only once it's actually been received) does it add who it was
+          // received with and in what mode. Ishwarlal / Ansoya entries are
+          // record-only, so just the turn name is shown for those.
+          const turnName = escapeHtml(item.otherPerson || '—');
+          if(item.otherPerson === OTHER_INCOME_OWNER){
+            if(item.mode && item.person){
+              const modeLabel = item.bankReceiptType ? `${item.mode} (${item.bankReceiptType})` : item.mode;
+              metaMain = `${turnName} · with ${escapeHtml(item.person)} · received in ${escapeHtml(modeLabel)}`;
+            } else {
+              metaMain = `${turnName} · <span style="color:var(--amber); font-weight:600;">pending — mode &amp; person not added yet</span>`;
+            }
+          } else {
+            metaMain = turnName;
+          }
+        } else {
+          const modeLabel = item.bankReceiptType ? `${item.mode} (${item.bankReceiptType})` : item.mode;
+          metaMain = `${modeLabel} · ${item.person}`;
+        }
         return `<div class="feed-row">
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag cr">CR</span>${item.category}</div>
-            <div class="meta">${modeLabel} · ${item.person}${item.note? ' · '+escapeHtml(item.note):''}${creditNote}</div>
+            <div class="meta">${metaMain}${item.note? ' · '+escapeHtml(item.note):''}${creditNote}</div>
           </div>
           <div class="feed-amt cr">+${fmtINR(item.amount)}</div>
           <div class="feed-actions">
