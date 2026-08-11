@@ -416,6 +416,19 @@
   #table-salary-record th:nth-child(3), #table-salary-record td:nth-child(3){
     text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
   }
+  /* Contra record table: Date, Details, Amount, Undo */
+  #table-contra-record th:nth-child(2), #table-contra-record td:nth-child(2){text-align:left;}
+  #table-contra-record th:nth-child(3), #table-contra-record td:nth-child(3){
+    text-align:right; font-family:'Inter Tight',sans-serif; font-weight:600;
+  }
+  #table-contra-record th:last-child, #table-contra-record td:last-child{text-align:right;}
+  .contra-undo-btn{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    font-family:'Inter',sans-serif; font-size:11.5px; font-weight:600;
+    padding:5px 10px; border-radius:8px; cursor:pointer;
+    transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  }
+  .contra-undo-btn:hover{color:var(--expense); border-color:var(--expense); background:var(--expense-soft);}
 
   /* Expense-by-description table: Description, Category, Entries, Total, Avg */
   .desc-table-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
@@ -563,6 +576,31 @@
     .feed-amt{font-size:13px;}
     .feed-del{font-size:15px;}
     .feed-edit{font-size:13px;}
+
+    /* "Full record" cards — Other Income, Salary, Contra entries */
+    .gap-card{padding:14px;}
+    .gap-card .section-title{font-size:15px;}
+    .section-title-amt{font-size:12.5px;}
+    .gap-sub{font-size:11px; line-height:1.45; margin-bottom:12px;}
+    .gap-overall{font-size:11.5px; gap:6px; margin:-2px 0 12px;}
+    table.gap-table th{font-size:9.5px; padding-bottom:6px;}
+    table.gap-table td{font-size:12px; padding:8px 0;}
+    table.gap-table td.gap-last{font-size:11px;}
+    .gap-pill{font-size:10.5px;}
+
+    /* Pending / Salary-credit / Contra review modals (share .catmgr-modal + .pending-row) */
+    .catmgr-modal{max-width:100%;}
+    .catmgr-head{padding:16px 16px 10px;}
+    .catmgr-head h3{font-size:15px;}
+    .catmgr-head .catmgr-sub{font-size:11px; line-height:1.4;}
+    .catmgr-list{padding:4px 16px;}
+    .pending-row{padding:12px 16px;}
+    .pending-row-date{font-size:12px;}
+    .pending-row-amt{font-size:13px;}
+    .pending-row-note{font-size:11px; line-height:1.45;}
+    .pending-settle{gap:6px; margin-top:8px;}
+    .seg button{font-size:12px; padding:8px 4px;}
+    .pending-update-btn{font-size:12.5px; padding:9px;}
   }
 
   @media (max-width:380px){
@@ -1010,6 +1048,18 @@
       <div class="detail" id="salary-credit-alert-detail">Tap to confirm once credited.</div>
     </div>
 
+    <!-- Contra entry check: fires whenever an income entry and an expense entry share
+         the exact same amount AND the same person ("with whom" on income = "by
+         whom" on expense), and neither has been reviewed yet — see
+         getContraCandidates()/renderContraAlert() below. -->
+    <div class="card alert-card medium pending-alert-card" id="contra-alert-card" style="display:none; cursor:pointer;">
+      <div>
+        <div class="badge"><span class="dot"></span><span id="contra-alert-badge">REVIEW</span></div>
+        <div class="headline" id="contra-alert-headline">Possible contra entries found</div>
+      </div>
+      <div class="detail" id="contra-alert-detail">Tap to confirm whether these are internal transfers.</div>
+    </div>
+
     <div class="chart-grid">
       <div class="card chart-card">
         <div class="section-title">Income by category</div>
@@ -1071,6 +1121,15 @@
       <div class="gap-sub">Every Salary entry — always shown in full, regardless of the "Whose dashboard" filter above.</div>
       <div class="gap-overall" id="salary-overall"></div>
       <table class="gap-table record-table" id="table-salary-record"><thead><tr><th>Date</th><th>With whom</th><th>Amount</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card gap-card">
+      <div class="section-title-row">
+        <div class="section-title">Contra entries — full record</div>
+        <div class="section-title-amt" id="contra-total-amt"></div>
+      </div>
+      <div class="gap-sub">Every income and expense entry confirmed as a contra (money moved between your own accounts, not real income or expense) — always shown in full, regardless of the "Whose dashboard" filter above, and left out of every total elsewhere on this dashboard.</div>
+      <table class="gap-table record-table" id="table-contra-record"><thead><tr><th>Date</th><th>Details</th><th>Amount</th><th>Undo</th></tr></thead><tbody></tbody></table>
     </div>
 
     <div class="card overview-card">
@@ -1316,6 +1375,19 @@
   </div>
 </div>
 
+<div class="catmgr-overlay" id="contra-overlay">
+  <div class="catmgr-modal pending-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>Possible contra entries</h3>
+        <div class="catmgr-sub">An income entry and an expense entry share the exact same amount and the same person (with whom / by whom). Mark each pair Yes if it's really just money moving between your own accounts — contra entries are left out of your income/expense totals. Mark No to count both normally.</div>
+      </div>
+      <button class="catmgr-close" id="contra-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="contra-list"></div>
+  </div>
+</div>
+
 <script>
 (function(){
   const STORAGE_KEY = 'khaata-data';
@@ -1520,6 +1592,7 @@
   // (no receipt mode / no "with whom" person filled in) are excluded too — they aren't
   // real income until they're settled.
   function isCountableIncome(e){
+    if(e.isContra) return false;
     if(e.category === 'Other Income' && e.otherPerson && e.otherPerson !== OTHER_INCOME_OWNER) return false;
     if(e.category === 'Other Income' && e.otherPerson === OTHER_INCOME_OWNER && (!e.mode || !e.person)) return false;
     if(e.category === 'Salary' && e.mode === 'Bank' && e.creditPending) return false;
@@ -1568,8 +1641,28 @@
     }
     return '';
   }
+  // Google Sheets/Apps Script doesn't reliably round-trip JS booleans — a false
+  // value written to a cell can come back as the literal text "FALSE" (or the
+  // cell can just be blank), and "FALSE" is a non-empty string so it's truthy
+  // in JS. Left alone, that means !e.contraReviewed silently stays true forever
+  // even right after a reversal sets contraReviewed to false, so the contra
+  // review alert never re-detects it once the sheet reloads. Coerce both contra
+  // flags to real booleans on every pull so "reviewed" always means what the
+  // sheet's Yes/No actually says, not whatever type the round trip happened to
+  // produce.
+  function toBool(v){
+    if(typeof v === 'boolean') return v;
+    if(v === undefined || v === null || v === '') return false;
+    const s = String(v).trim().toLowerCase();
+    return s === 'true' || s === 'yes' || s === '1';
+  }
   function normalizeEntries(list){
-    return (list || []).map(it => ({ ...it, date: toISODate(it.date) })).filter(it => it.date);
+    return (list || []).map(it => ({
+      ...it,
+      date: toISODate(it.date),
+      isContra: toBool(it.isContra),
+      contraReviewed: toBool(it.contraReviewed)
+    })).filter(it => it.date);
   }
 
   function updateSyncDot(state){
@@ -1843,6 +1936,7 @@
     renderFeed();
     renderPendingAlert();
     renderSalaryCreditAlert();
+    renderContraAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -1946,6 +2040,7 @@
     hideDescSuggestions();
     flashMsg('exp-msg');
     renderFeed();
+    renderContraAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -2093,6 +2188,13 @@
       updated.creditPending = true;
     }
     if(updated.amount <= 0) return;
+    // Keep the existing contra determination only if the amount hasn't changed —
+    // a changed amount may no longer match its old pair, so let it be picked up
+    // fresh by the contra check instead of silently keeping a stale verdict.
+    if(DATA.income[idx].amount === updated.amount){
+      updated.isContra = DATA.income[idx].isContra || false;
+      updated.contraReviewed = DATA.income[idx].contraReviewed || false;
+    }
 
     const ok = await askConfirm('This will overwrite the entry\'s saved details.', {title:'Save changes?', okText:'Save', danger:false});
     if(!ok) return;
@@ -2103,6 +2205,7 @@
     renderFeed();
     renderPendingAlert();
     renderSalaryCreditAlert();
+    renderContraAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -2124,6 +2227,11 @@
       desc: document.getElementById('edit-exp-desc').value.trim()
     };
     if(updated.amount <= 0) return;
+    // See the matching comment in the income edit handler above.
+    if(DATA.expense[idx].amount === updated.amount){
+      updated.isContra = DATA.expense[idx].isContra || false;
+      updated.contraReviewed = DATA.expense[idx].contraReviewed || false;
+    }
 
     const ok = await askConfirm('This will overwrite the entry\'s saved details.', {title:'Save changes?', okText:'Save', danger:false});
     if(!ok) return;
@@ -2132,6 +2240,7 @@
     await saveData();
     closeEditEntry();
     renderFeed();
+    renderContraAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -2170,6 +2279,7 @@
     DATA[type] = DATA[type].filter(x=>x.id !== id);
     await saveData();
     renderFeed();
+    renderContraAlert();
     pushToSheet();
   }
 
@@ -2212,6 +2322,7 @@
       const yr = d.getFullYear();
       if(item.type === 'income'){
         const creditNote = item.creditPending ? ' · <span style="color:var(--amber); font-weight:600;">not credited yet</span>' : '';
+        const contraNote = item.isContra ? ' · <span style="color:var(--navy); font-weight:600;">contra</span>' : '';
         let metaMain;
         if(item.category === 'Other Income'){
           // Other Income never shows a generic mode/person line — instead it leads
@@ -2238,7 +2349,7 @@
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag cr">CR</span>${item.category}</div>
-            <div class="meta">${metaMain}${item.note? ' · '+escapeHtml(item.note):''}${creditNote}</div>
+            <div class="meta">${metaMain}${item.note? ' · '+escapeHtml(item.note):''}${creditNote}${contraNote}</div>
           </div>
           <div class="feed-amt cr">+${fmtINR(item.amount)}</div>
           <div class="feed-actions">
@@ -2251,7 +2362,7 @@
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag dr">DR</span>${item.category}</div>
-            <div class="meta">${item.mode}${item.person? ' · '+escapeHtml(item.person):''}${item.forWhom? ' · for '+escapeHtml(item.forWhom):''}${item.desc? ' · '+escapeHtml(item.desc):''}</div>
+            <div class="meta">${item.mode}${item.person? ' · '+escapeHtml(item.person):''}${item.forWhom? ' · for '+escapeHtml(item.forWhom):''}${item.desc? ' · '+escapeHtml(item.desc):''}${item.isContra? ' · <span style="color:var(--navy); font-weight:600;">contra</span>':''}</div>
           </div>
           <div class="feed-amt dr">−${fmtINR(item.amount)}</div>
           <div class="feed-actions">
@@ -2609,7 +2720,7 @@
     if(!tbody) return;
 
     const allOther = DATA.income
-      .filter(e=> e.category === 'Other Income')
+      .filter(e=> e.category === 'Other Income' && !e.isContra)
       .slice()
       .sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
@@ -2643,7 +2754,7 @@
     // Always the full Salary history — deliberately ignores dashboardPersonFilter,
     // same as the Other Income record table.
     const allSalary = DATA.income
-      .filter(e=> e.category === 'Salary')
+      .filter(e=> e.category === 'Salary' && !e.isContra)
       .slice()
       .sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
@@ -2664,6 +2775,86 @@
       const whom = [e.mode, e.person].filter(Boolean).join(' · ') || '—';
       return `<tr><td>${fmtDate(e.date)}</td><td>${escapeHtml(whom)}</td><td>${fmtINR(e.amount)}</td></tr>`;
     }).join('');
+  }
+
+  // Every entry confirmed as a contra pair (isContra === true), income and expense
+  // combined into one chronological record — same "full record, ignores the
+  // Whose dashboard filter" convention as the Other Income / Salary tables above.
+  // The header shows an entry count rather than a rupee total: summing income and
+  // expense sides together would double-count the same transferred amount, since
+  // contra pairs cancel each other out by design.
+  function renderContraRecordTable(from, to){
+    const tbody = document.querySelector('#table-contra-record tbody');
+    if(!tbody) return;
+
+    const allContra = [
+      ...DATA.income.filter(e=> e.isContra).map(e=>({...e, entryType:'income'})),
+      ...DATA.expense.filter(e=> e.isContra).map(e=>({...e, entryType:'expense'}))
+    ].sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+
+    // Newest date first; for entries logged on the same date, the one added most
+    // recently (by id, which is time-ordered) shows above the older one.
+    const entries = allContra
+      .filter(e=> inRange(e.date, from, to))
+      .sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+    const totalAmtEl = document.getElementById('contra-total-amt');
+    if(totalAmtEl) totalAmtEl.textContent = entries.length ? `${entries.length} ${entries.length===1?'entry':'entries'}` : '';
+
+    if(entries.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted); padding:14px 0;">No contra entries in this period</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = entries.map(e=>{
+      const tagCls = e.entryType === 'income' ? 'cr' : 'dr';
+      const tagText = e.entryType === 'income' ? 'CR' : 'DR';
+      const detail = `${escapeHtml(e.category)}${e.person? ' · '+escapeHtml(e.person):''}`;
+      return `<tr><td>${fmtDate(e.date)}</td><td><span class="feed-tag ${tagCls}">${tagText}</span>${detail}</td><td>${fmtINR(e.amount)}</td><td><button type="button" class="contra-undo-btn" data-type="${e.entryType}" data-id="${e.id}">Reverse</button></td></tr>`;
+    }).join('');
+
+    // A contra confirmation was previously permanent — once marked Yes there was
+    // no way back short of editing the raw sheet. This lets a wrongly-confirmed
+    // pair be reversed with one tap: since the two sides of a pair aren't linked
+    // by id (only matched by amount+person at confirmation time), the counterpart
+    // is re-found the same way here — the opposite-type contra entry with the
+    // same amount and person, closest in date if more than one matches — and
+    // both sides are reversed together. If no counterpart is found (its amount,
+    // person, or contra status changed since), only this entry is reversed.
+    // Reversing clears contraReviewed too, not just isContra — the pair goes
+    // back to an un-reviewed state, so it resurfaces in the contra review alert
+    // for a fresh Yes/No rather than silently staying "confirmed not contra".
+    function findContraCounterpart(entry, entryType){
+      const oppositeList = entryType === 'income' ? DATA.expense : DATA.income;
+      const candidates = oppositeList.filter(x=> x.isContra && x.amount === entry.amount && x.person === entry.person);
+      if(candidates.length === 0) return null;
+      candidates.sort((a,b)=> Math.abs(new Date(a.date) - new Date(entry.date)) - Math.abs(new Date(b.date) - new Date(entry.date)));
+      return candidates[0];
+    }
+
+    tbody.querySelectorAll('.contra-undo-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const type = btn.dataset.type, id = btn.dataset.id;
+        const list = type === 'income' ? DATA.income : DATA.expense;
+        const entry = list.find(x=> x.id === id);
+        if(!entry) return;
+        const counterpart = findContraCounterpart(entry, type);
+        const msg = counterpart
+          ? `Reverse this ${fmtINR(entry.amount)} contra pair — the income entry and the expense entry? Both will count normally again and will reappear in the contra review alert for you to re-confirm.`
+          : `Reverse the contra confirmation on this ${fmtINR(entry.amount)} ${type} entry? It will count normally again and reappear in the contra review alert for you to re-confirm.`;
+        const ok = await askConfirm(msg, {title:'Reverse contra entry?', okText:'Reverse', danger:true});
+        if(!ok) return;
+        entry.isContra = false;
+        entry.contraReviewed = false;
+        if(counterpart){ counterpart.isContra = false; counterpart.contraReviewed = false; }
+        await saveData();
+        renderFeed();
+        renderContraAlert();
+        if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+        else renderContraRecordTable(from, to);
+        pushToSheet();
+      });
+    });
   }
 
   function buildDateList(from, to){
@@ -2707,8 +2898,11 @@
     let from = rangeFrom.value, to = rangeTo.value;
     if(from > to){ [from, to] = [to, from]; }
 
+    // Entries confirmed as contra (a same-amount income/expense pair that's really
+    // just money moved between your own accounts) are left out of every total,
+    // chart, and category table below — see the Contra entry check section.
     const incEntries = DATA.income.filter(e=>inRange(e.date, from, to) && isCountableIncome(e) && matchesPersonFilter(e));
-    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to) && matchesPersonFilter(e) && matchesForWhomFilter(e));
+    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to) && matchesPersonFilter(e) && matchesForWhomFilter(e) && !e.isContra);
 
     const totalIncome = incEntries.reduce((s,e)=>s+e.amount,0);
     const totalExpense = expEntries.reduce((s,e)=>s+e.amount,0);
@@ -2783,8 +2977,10 @@
     renderIncomeGapTable();
     renderOtherIncomeRecordTable(from, to);
     renderSalaryRecordTable(from, to);
+    renderContraRecordTable(from, to);
     renderPendingAlert();
     renderSalaryCreditAlert();
+    renderContraAlert();
 
     // trend
     const dates = buildDateList(from, to);
@@ -3498,6 +3694,125 @@
   document.getElementById('salary-credit-close-btn').addEventListener('click', closeSalaryCreditOverlay);
   salaryCreditOverlay.addEventListener('click', (e)=>{ if(e.target === salaryCreditOverlay) closeSalaryCreditOverlay(); });
 
+  // ---------- Contra entry check ----------
+  // A "contra entry" here means an income entry and an expense entry that were
+  // both logged for the exact same amount AND the same person — "with whom"
+  // on the income side, "by whom" on the expense side (both draw from the same
+  // People list, so they're directly comparable). That combination is what
+  // usually signals money moved between your own accounts (e.g. cash withdrawn
+  // from the bank) rather than real income and real expense. Every entry
+  // carries two flags:
+  //   contraReviewed — true once a human has answered Yes/No for it, so it's
+  //                    never re-surfaced for review again.
+  //   isContra       — true only if the answer was Yes; such entries are left
+  //                    out of the dashboard's income/expense totals.
+  const contraAlertCard = document.getElementById('contra-alert-card');
+  const contraOverlay = document.getElementById('contra-overlay');
+  const contraList = document.getElementById('contra-list');
+
+  // Pairs up not-yet-reviewed income and expense entries that share both the
+  // amount and the person (income's "with whom" = expense's "by whom").
+  // Matching is one-to-one — each entry is used in at most one pair, oldest
+  // entries matched first so the same amount/person combo recurring many
+  // times doesn't repeatedly re-pair the same two entries. Entries with no
+  // person set (e.g. Other Income logged for someone else, not yet received)
+  // have nothing to match against and are skipped.
+  function getContraCandidates(){
+    const unreviewedIncome = DATA.income.filter(e => !e.contraReviewed && e.person).slice().sort((a,b)=> a.date.localeCompare(b.date));
+    const unreviewedExpense = DATA.expense.filter(e => !e.contraReviewed && e.person).slice().sort((a,b)=> a.date.localeCompare(b.date));
+    const byKey = {};
+    unreviewedIncome.forEach(e => {
+      const key = e.amount + '|' + e.person;
+      (byKey[key] = byKey[key] || []).push(e);
+    });
+    const pairs = [];
+    unreviewedExpense.forEach(exp => {
+      const key = exp.amount + '|' + exp.person;
+      const bucket = byKey[key];
+      if(bucket && bucket.length){
+        pairs.push({ income: bucket.shift(), expense: exp });
+      }
+    });
+    return pairs;
+  }
+
+  function renderContraAlert(){
+    const pairs = getContraCandidates();
+    if(pairs.length === 0){ contraAlertCard.style.display = 'none'; return; }
+    contraAlertCard.style.display = '';
+    document.getElementById('contra-alert-detail').textContent =
+      `${pairs.length} matching ${pairs.length===1?'pair':'pairs'} found — tap to confirm whether they're internal transfers.`;
+  }
+
+  function renderContraList(){
+    const pairs = getContraCandidates().slice().sort((a,b)=> b.income.date.localeCompare(a.income.date));
+    if(pairs.length === 0){
+      contraList.innerHTML = '<div class="pending-empty">No matching income/expense amounts to review.</div>';
+      return;
+    }
+    contraList.innerHTML = pairs.map(p=>{
+      const inc = p.income, exp = p.expense;
+      return `<div class="pending-row" data-inc="${inc.id}" data-exp="${exp.id}">
+        <div class="pending-row-top"><div class="pending-row-date">Same amount · ${escapeHtml(inc.person)}</div><div class="pending-row-amt">${fmtINR(inc.amount)}</div></div>
+        <div class="pending-row-note">
+          Income — ${fmtDate(inc.date)} · ${escapeHtml(inc.category)}${inc.note ? ' · '+escapeHtml(inc.note) : ''} · with ${escapeHtml(inc.person)}<br>
+          Expense — ${fmtDate(exp.date)} · ${escapeHtml(exp.category)}${exp.desc ? ' · '+escapeHtml(exp.desc) : ''} · by ${escapeHtml(exp.person)}
+        </div>
+        <div class="pending-settle">
+          <div class="eyebrow">Is this a contra entry?</div>
+          <div class="seg contra-yn-seg" data-inc="${inc.id}" data-exp="${exp.id}">
+            <button type="button" data-val="no" class="active">No</button>
+            <button type="button" data-val="yes">Yes</button>
+          </div>
+          <button type="button" class="pending-update-btn contra-submit-btn" data-inc="${inc.id}" data-exp="${exp.id}">Submit</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    contraList.querySelectorAll('.contra-yn-seg').forEach(seg=>{
+      seg.querySelectorAll('button').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+          b.classList.add('active');
+        });
+      });
+    });
+
+    contraList.querySelectorAll('.contra-submit-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const incId = btn.dataset.inc, expId = btn.dataset.exp;
+        const seg = contraList.querySelector(`.contra-yn-seg[data-inc="${incId}"][data-exp="${expId}"]`);
+        const val = seg.querySelector('button.active').dataset.val;
+        const incEntry = DATA.income.find(e => e.id === incId);
+        const expEntry = DATA.expense.find(e => e.id === expId);
+        if(!incEntry || !expEntry) return;
+        const amtTxt = fmtINR(incEntry.amount);
+        const msg = val === 'yes'
+          ? `Mark this ${amtTxt} income entry and ${amtTxt} expense entry as a contra entry? Both will be left out of your income/expense totals from now on.`
+          : `Confirm these ${amtTxt} entries are NOT a contra entry? They'll keep counting normally and won't be flagged again.`;
+        const ok = await askConfirm(msg, {title:'Submit?', okText:'Submit', danger:false});
+        if(!ok) return;
+        incEntry.isContra = (val === 'yes');
+        incEntry.contraReviewed = true;
+        expEntry.isContra = (val === 'yes');
+        expEntry.contraReviewed = true;
+        await saveData();
+        renderContraList();
+        renderContraAlert();
+        renderFeed();
+        if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+        pushToSheet();
+      });
+    });
+  }
+
+  function openContraOverlay(){ renderContraList(); contraOverlay.classList.add('show'); }
+  function closeContraOverlay(){ contraOverlay.classList.remove('show'); }
+
+  contraAlertCard.addEventListener('click', openContraOverlay);
+  document.getElementById('contra-close-btn').addEventListener('click', closeContraOverlay);
+  contraOverlay.addEventListener('click', (e)=>{ if(e.target === contraOverlay) closeContraOverlay(); });
+
   // ---------- Login ----------
   const AUTH_KEY = 'khaata-remember-auth';
   const LOGIN_ID = '21122003';   // 21 12 2003, digits only
@@ -3550,12 +3865,14 @@
     renderFeed();
     renderPendingAlert();
     renderSalaryCreditAlert();
+    renderContraAlert();
     setPreset('month');
     await pullFromSheet();
     renderExpenseCategorySelect();
     renderFeed();
     renderPendingAlert();
     renderSalaryCreditAlert();
+    renderContraAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
   })();
 
