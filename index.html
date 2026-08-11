@@ -124,6 +124,9 @@
   .section-title{font-family:'Fraunces',serif; font-size:16.5px; font-weight:600; margin:0 0 14px; letter-spacing:-.005em; position:relative; padding-left:12px;}
   .section-title::before{content:''; position:absolute; left:0; top:2px; bottom:2px; width:3px; border-radius:2px; background:var(--expense); opacity:.5;}
   .eyebrow{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted);}
+  .section-title-row{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .section-title-row .section-title{margin-bottom:4px;}
+  .section-title-amt{font-family:'Inter Tight',sans-serif; font-weight:700; font-size:15px; color:var(--ink); white-space:nowrap; padding-bottom:4px;}
 
   /* ---------- Entry view ---------- */
   .entry-grid{display:grid; grid-template-columns:1.05fr 1.4fr; gap:20px; align-items:start;}
@@ -1054,7 +1057,10 @@
     </div>
 
     <div class="card gap-card">
-      <div class="section-title">Other Income — full record</div>
+      <div class="section-title-row">
+        <div class="section-title">Other Income — full record</div>
+        <div class="section-title-amt" id="other-income-total-amt"></div>
+      </div>
       <div class="gap-sub">Every Other Income entry, all people — always shown in full, regardless of the "Whose dashboard" filter above. Only Jayantilal Kaila's settled entries count toward your income totals above.</div>
       <div class="gap-overall" id="other-income-overall"></div>
       <table class="gap-table record-table" id="table-other-income-record"><thead><tr><th>Date</th><th>Person</th><th>Amount</th></tr></thead><tbody></tbody></table>
@@ -2615,17 +2621,19 @@
       .filter(e=> inRange(e.date, from, to))
       .sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
+    const periodTotal = entries.reduce((sum,e)=> sum + e.amount, 0);
+    const totalAmtEl = document.getElementById('other-income-total-amt');
+    if(totalAmtEl) totalAmtEl.textContent = fmtINR(periodTotal);
+
     if(entries.length === 0){
       tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted); padding:14px 0;">No Other Income entries in this period</td></tr>';
       return;
     }
 
-    const periodTotal = entries.reduce((sum,e)=> sum + e.amount, 0);
-
     tbody.innerHTML = entries.map(e=>{
       const person = e.otherPerson || '—';
       return `<tr><td>${fmtDate(e.date)}</td><td>${escapeHtml(person)}</td><td>${fmtINR(e.amount)}</td></tr>`;
-    }).join('') + `<tr class="total-row"><td colspan="2">Total (all people, received or not)</td><td class="amt">${fmtINR(periodTotal)}</td></tr>`;
+    }).join('');
   }
 
   function renderSalaryRecordTable(from, to){
