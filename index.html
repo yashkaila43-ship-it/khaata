@@ -391,6 +391,8 @@
   table.gap-table td{padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px;}
   table.gap-table tr:last-child td{border-bottom:none;}
   table.gap-table td.gap-last{font-family:'Inter Tight',sans-serif; color:var(--muted); font-size:12.5px;}
+  table.gap-table td.amt{font-family:'Inter Tight',sans-serif; font-weight:600;}
+  table.gap-table tr.total-row td{border-top:1.5px solid var(--line); font-weight:700; padding-top:10px; font-size:13px;}
   .gap-pill{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:12.5px; font-weight:700; white-space:nowrap;}
   .gap-pill .dot2{width:6px; height:6px; border-radius:50%;}
   .gap-pill.gap-fresh{background:var(--income-soft); color:var(--income);}
@@ -2618,10 +2620,12 @@
       return;
     }
 
+    const periodTotal = entries.reduce((sum,e)=> sum + e.amount, 0);
+
     tbody.innerHTML = entries.map(e=>{
       const person = e.otherPerson || '—';
       return `<tr><td>${fmtDate(e.date)}</td><td>${escapeHtml(person)}</td><td>${fmtINR(e.amount)}</td></tr>`;
-    }).join('');
+    }).join('') + `<tr class="total-row"><td colspan="2">Total (all people, received or not)</td><td class="amt">${fmtINR(periodTotal)}</td></tr>`;
   }
 
   function renderSalaryRecordTable(from, to){
