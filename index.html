@@ -753,7 +753,7 @@
   .pending-row-amt{font-family:'Inter Tight',sans-serif; font-weight:700; color:var(--income); font-size:14.5px;}
   .pending-row-note{font-size:11.5px; color:var(--muted); margin-bottom:10px;}
   .pending-settle{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
-  .pending-settle select, .pending-settle input[type="text"]{
+  .pending-settle select, .pending-settle input[type="text"], .pending-settle input[type="date"], .pending-settle input[type="number"]{
     width:100%; padding:9px 11px; border:1.5px solid var(--line); border-radius:8px; background:var(--paper);
     font-family:'Inter',sans-serif; font-size:16px; color:var(--ink); outline:none;
     transition:border-color var(--dur) var(--ease);
@@ -767,6 +767,31 @@
   .pending-update-btn:hover{opacity:.88;}
   .pending-update-btn:active{transform:scale(.97);}
   .pending-empty{padding:24px 22px; text-align:center; color:var(--muted); font-size:13px;}
+
+  /* ---------- Manual "mark as contra" toggle (entry form + edit modal) ----------
+     Single click selects it, double-click clears it — deliberately not a plain
+     toggle-on-single-click, per how this is meant to be used. Independent of the
+     isContra/contraReviewed pair used by the existing auto-detected contra alert. */
+  .contra-toggle-btn{
+    width:100%; padding:10px; border-radius:9px; border:1.5px dashed var(--line); background:var(--surface);
+    font-family:'Inter Tight',sans-serif; font-weight:600; font-size:12.5px; color:var(--muted); cursor:pointer;
+    text-align:center; user-select:none;
+    transition:border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  .contra-toggle-btn:hover{color:var(--ink);}
+  .contra-toggle-btn.active{border-style:solid; border-color:var(--navy); color:var(--navy); background:var(--navy-soft);}
+  .contra-toggle-btn:disabled{opacity:.55; cursor:not-allowed;}
+
+  /* ---------- Contra — match pending (new alert, separate from the old auto-detect alert) ---------- */
+  .contra-pending-settle .eyebrow{margin:10px 0 6px;}
+  .contra-new-fields{display:flex; flex-direction:column; gap:8px;}
+  .contra-remove-btn{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    font-family:'Inter',sans-serif; font-size:11.5px; font-weight:600;
+    padding:5px 10px; border-radius:8px; cursor:pointer;
+    transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  }
+  .contra-remove-btn:hover{color:var(--expense); border-color:var(--expense); background:var(--expense-soft);}
 
   @media (prefers-reduced-motion: reduce){
     *, *::before, *::after{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
@@ -892,6 +917,9 @@
             <label>Note (optional)</label>
             <input type="text" id="inc-note" placeholder="e.g. July salary, Diwali bonus...">
           </div>
+          <div class="field">
+            <button type="button" class="contra-toggle-btn" id="inc-contra-btn" data-active="false">Mark as contra (internal transfer)</button>
+          </div>
           <button type="submit" class="submit-btn">Add income entry</button>
           <div class="sync-block-msg" id="inc-sync-msg">Waiting for Google Sheets to sync — entries can't be added until it reconnects.</div>
           <div class="form-msg" id="inc-msg">Entry added ✓</div>
@@ -935,6 +963,9 @@
           <div class="field">
             <label>For whom <button type="button" class="pencil-btn" id="manage-people-btn-exp-forwhom" title="Add, rename or remove names">✎</button></label>
             <select id="exp-forwhom"></select>
+          </div>
+          <div class="field">
+            <button type="button" class="contra-toggle-btn" id="exp-contra-btn" data-active="false">Mark as contra (internal transfer)</button>
           </div>
           <button type="submit" class="submit-btn">Add expense entry</button>
           <div class="sync-block-msg" id="exp-sync-msg">Waiting for Google Sheets to sync — entries can't be added until it reconnects.</div>
@@ -1058,6 +1089,18 @@
         <div class="headline" id="contra-alert-headline">Possible contra entries found</div>
       </div>
       <div class="detail" id="contra-alert-detail">Tap to confirm whether these are internal transfers.</div>
+    </div>
+
+    <!-- Manually marked contra entries awaiting their counterpart — separate feature
+         from the auto-detect alert above; see the "Mark as contra" toggle on the
+         entry form and edit modal, and resolveContraPending()/renderContraPendingAlert()
+         below. -->
+    <div class="card alert-card medium pending-alert-card" id="contra-pending-alert-card" style="display:none; cursor:pointer;">
+      <div>
+        <div class="badge"><span class="dot"></span><span id="contra-pending-alert-badge">PENDING</span></div>
+        <div class="headline" id="contra-pending-alert-headline">Contra — match pending</div>
+      </div>
+      <div class="detail" id="contra-pending-alert-detail">Tap to match these to their income/expense counterpart.</div>
     </div>
 
     <div class="chart-grid">
@@ -1231,6 +1274,9 @@
           <label>Note (optional)</label>
           <input type="text" id="edit-inc-note" placeholder="e.g. July salary, Diwali bonus...">
         </div>
+        <div class="field">
+          <button type="button" class="contra-toggle-btn" id="edit-inc-contra-btn" data-active="false">Mark as contra (internal transfer)</button>
+        </div>
         <button type="submit" class="submit-btn">Save changes</button>
         <div class="form-msg" id="edit-inc-msg">Entry updated ✓</div>
       </form>
@@ -1269,6 +1315,9 @@
         <div class="field">
           <label>For whom</label>
           <select id="edit-exp-forwhom"></select>
+        </div>
+        <div class="field">
+          <button type="button" class="contra-toggle-btn" id="edit-exp-contra-btn" data-active="false">Mark as contra (internal transfer)</button>
         </div>
         <button type="submit" class="submit-btn">Save changes</button>
         <div class="form-msg" id="edit-exp-msg">Entry updated ✓</div>
@@ -1385,6 +1434,19 @@
       <button class="catmgr-close" id="contra-close-btn">&times;</button>
     </div>
     <div class="catmgr-list" id="contra-list"></div>
+  </div>
+</div>
+
+<div class="catmgr-overlay" id="contra-pending-overlay">
+  <div class="catmgr-modal pending-modal">
+    <div class="catmgr-head">
+      <div>
+        <h3>Contra — match pending</h3>
+        <div class="catmgr-sub">Entries marked as a contra (internal transfer) via the "Mark as contra" button, waiting for their matching income or expense entry. Pick an existing entry (closest amount first) or write a new one — the person stays fixed to the original entry. If the amounts don't match exactly, the difference is kept as a normal entry on whichever side is larger.</div>
+      </div>
+      <button class="catmgr-close" id="contra-pending-close-btn">&times;</button>
+    </div>
+    <div class="catmgr-list" id="contra-pending-list"></div>
   </div>
 </div>
 
@@ -1661,7 +1723,8 @@
       ...it,
       date: toISODate(it.date),
       isContra: toBool(it.isContra),
-      contraReviewed: toBool(it.contraReviewed)
+      contraReviewed: toBool(it.contraReviewed),
+      contraPending: toBool(it.contraPending)
     })).filter(it => it.date);
   }
 
@@ -1809,6 +1872,30 @@
   wireSeg('inc-bank-receipt');
   function segVal(id){ return document.querySelector('#'+id+' button.active').dataset.val; }
 
+  // ---------- Manual "mark as contra" toggle ----------
+  // Click selects it; double-click clears it. Default unselected. Returns a
+  // setter so callers (form reset, edit-entry open) can drive the state too.
+  function wireContraToggleBtn(btn){
+    if(!btn) return ()=>{};
+    const setState = (val)=>{
+      btn.dataset.active = val ? 'true' : 'false';
+      btn.classList.toggle('active', val);
+      btn.textContent = val ? 'Marked as contra ✓ — double-click to unmark' : 'Mark as contra (internal transfer)';
+    };
+    btn.addEventListener('click', ()=> setState(true));
+    btn.addEventListener('dblclick', (e)=>{ e.preventDefault(); setState(false); });
+    setState(false);
+    return setState;
+  }
+  const incContraBtn = document.getElementById('inc-contra-btn');
+  const expContraBtn = document.getElementById('exp-contra-btn');
+  const editIncContraBtn = document.getElementById('edit-inc-contra-btn');
+  const editExpContraBtn = document.getElementById('edit-exp-contra-btn');
+  const setIncContraState = wireContraToggleBtn(incContraBtn);
+  const setExpContraState = wireContraToggleBtn(expContraBtn);
+  const setEditIncContraState = wireContraToggleBtn(editIncContraBtn);
+  const setEditExpContraState = wireContraToggleBtn(editExpContraBtn);
+
   const incPerson = document.getElementById('inc-person');
   const expPerson = document.getElementById('exp-person');
   const expForWhom = document.getElementById('exp-forwhom');
@@ -1923,6 +2010,7 @@
     if(category === 'Salary' && entry.mode === 'Bank' && segVal('inc-credited') === 'no'){
       entry.creditPending = true;
     }
+    entry.contraPending = incContraBtn.dataset.active === 'true';
 
     if(entry.amount <= 0) return;
     DATA.income.push(entry);
@@ -1932,11 +2020,13 @@
     syncOtherPersonField();
     document.querySelector('#inc-mode button[data-val="Bank"]').click();
     syncCreditedFieldVisibility();
+    setIncContraState(false);
     flashMsg('inc-msg');
     renderFeed();
     renderPendingAlert();
     renderSalaryCreditAlert();
     renderContraAlert();
+    renderContraPendingAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -2029,7 +2119,8 @@
       mode: segVal('exp-mode'),
       person: expPerson.value,
       forWhom: expForWhom.value,
-      desc: document.getElementById('exp-desc').value.trim()
+      desc: document.getElementById('exp-desc').value.trim(),
+      contraPending: expContraBtn.dataset.active === 'true'
     };
     if(entry.amount <= 0) return;
     DATA.expense.push(entry);
@@ -2038,9 +2129,11 @@
     document.getElementById('exp-date').value = todayISO();
     document.querySelector('#exp-mode button[data-val="Bank"]').click();
     hideDescSuggestions();
+    setExpContraState(false);
     flashMsg('exp-msg');
     renderFeed();
     renderContraAlert();
+    renderContraPendingAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -2134,6 +2227,9 @@
       setSegActive('edit-inc-credited', entry.creditPending ? 'no' : 'yes');
       refreshEditIncomeVisibility();
       refreshEditCreditedVisibility();
+      setEditIncContraState(!!entry.contraPending);
+      editIncContraBtn.disabled = !!entry.isContra;
+      editIncContraBtn.title = entry.isContra ? 'Already a confirmed contra entry — reverse it from the contra record table first.' : '';
     } else {
       editIncomeForm.style.display = 'none';
       editExpenseForm.style.display = '';
@@ -2147,6 +2243,9 @@
       if(entry.person && peopleList.includes(entry.person)) personSel.value = entry.person;
       const forWhomSel = document.getElementById('edit-exp-forwhom');
       if(entry.forWhom && forWhomPeopleList.includes(entry.forWhom)) forWhomSel.value = entry.forWhom;
+      setEditExpContraState(!!entry.contraPending);
+      editExpContraBtn.disabled = !!entry.isContra;
+      editExpContraBtn.title = entry.isContra ? 'Already a confirmed contra entry — reverse it from the contra record table first.' : '';
     }
     editEntryOverlay.classList.add('show');
   }
@@ -2195,6 +2294,7 @@
       updated.isContra = DATA.income[idx].isContra || false;
       updated.contraReviewed = DATA.income[idx].contraReviewed || false;
     }
+    updated.contraPending = updated.isContra ? false : (editIncContraBtn.dataset.active === 'true');
 
     const ok = await askConfirm('This will overwrite the entry\'s saved details.', {title:'Save changes?', okText:'Save', danger:false});
     if(!ok) return;
@@ -2206,6 +2306,7 @@
     renderPendingAlert();
     renderSalaryCreditAlert();
     renderContraAlert();
+    renderContraPendingAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -2232,6 +2333,7 @@
       updated.isContra = DATA.expense[idx].isContra || false;
       updated.contraReviewed = DATA.expense[idx].contraReviewed || false;
     }
+    updated.contraPending = updated.isContra ? false : (editExpContraBtn.dataset.active === 'true');
 
     const ok = await askConfirm('This will overwrite the entry\'s saved details.', {title:'Save changes?', okText:'Save', danger:false});
     if(!ok) return;
@@ -2241,6 +2343,7 @@
     closeEditEntry();
     renderFeed();
     renderContraAlert();
+    renderContraPendingAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
     pushToSheet();
   });
@@ -2280,6 +2383,7 @@
     await saveData();
     renderFeed();
     renderContraAlert();
+    renderContraPendingAlert();
     pushToSheet();
   }
 
@@ -2322,7 +2426,7 @@
       const yr = d.getFullYear();
       if(item.type === 'income'){
         const creditNote = item.creditPending ? ' · <span style="color:var(--amber); font-weight:600;">not credited yet</span>' : '';
-        const contraNote = item.isContra ? ' · <span style="color:var(--navy); font-weight:600;">contra</span>' : '';
+        const contraNote = item.isContra ? ' · <span style="color:var(--navy); font-weight:600;">contra</span>' : (item.contraPending ? ' · <span style="color:var(--amber); font-weight:600;">contra match pending</span>' : '');
         let metaMain;
         if(item.category === 'Other Income'){
           // Other Income never shows a generic mode/person line — instead it leads
@@ -2362,7 +2466,7 @@
           <div class="feed-date"><b>${day}</b>${mon} '${String(yr).slice(2)}</div>
           <div class="feed-main">
             <div class="title"><span class="feed-tag dr">DR</span>${item.category}</div>
-            <div class="meta">${item.mode}${item.person? ' · '+escapeHtml(item.person):''}${item.forWhom? ' · for '+escapeHtml(item.forWhom):''}${item.desc? ' · '+escapeHtml(item.desc):''}${item.isContra? ' · <span style="color:var(--navy); font-weight:600;">contra</span>':''}</div>
+            <div class="meta">${item.mode}${item.person? ' · '+escapeHtml(item.person):''}${item.forWhom? ' · for '+escapeHtml(item.forWhom):''}${item.desc? ' · '+escapeHtml(item.desc):''}${item.isContra? ' · <span style="color:var(--navy); font-weight:600;">contra</span>' : (item.contraPending? ' · <span style="color:var(--amber); font-weight:600;">contra match pending</span>':'')}</div>
           </div>
           <div class="feed-amt dr">−${fmtINR(item.amount)}</div>
           <div class="feed-actions">
@@ -2850,6 +2954,7 @@
         await saveData();
         renderFeed();
         renderContraAlert();
+        renderContraPendingAlert();
         if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
         else renderContraRecordTable(from, to);
         pushToSheet();
@@ -2981,6 +3086,7 @@
     renderPendingAlert();
     renderSalaryCreditAlert();
     renderContraAlert();
+    renderContraPendingAlert();
 
     // trend
     const dates = buildDateList(from, to);
@@ -3813,6 +3919,236 @@
   document.getElementById('contra-close-btn').addEventListener('click', closeContraOverlay);
   contraOverlay.addEventListener('click', (e)=>{ if(e.target === contraOverlay) closeContraOverlay(); });
 
+  // ---------- Contra — match pending (manual "Mark as contra" toggle) ----------
+  // Completely separate from the auto-detect contra alert above — this alert only
+  // reacts to entries the user explicitly marked via the "Mark as contra" button
+  // on the entry form / edit modal (entry.contraPending). Resolving one pairs it
+  // with an existing or newly-written opposite-type entry, reusing isContra /
+  // contraReviewed for the paired portion — so a resolved pair shows up in the
+  // existing "Contra entries — full record" table with its existing Reverse button,
+  // no separate record UI needed. If the two amounts don't match, the leftover
+  // is kept as a normal (non-contra) entry of whichever side was larger.
+  const contraPendingAlertCard = document.getElementById('contra-pending-alert-card');
+  const contraPendingOverlay = document.getElementById('contra-pending-overlay');
+  const contraPendingList = document.getElementById('contra-pending-list');
+
+  function getContraPendingEntries(){
+    return {
+      income: DATA.income.filter(e => e.contraPending),
+      expense: DATA.expense.filter(e => e.contraPending)
+    };
+  }
+
+  function renderContraPendingAlert(){
+    const { income, expense } = getContraPendingEntries();
+    const total = income.length + expense.length;
+    if(total === 0){ contraPendingAlertCard.style.display = 'none'; return; }
+    contraPendingAlertCard.style.display = '';
+    const parts = [];
+    if(income.length) parts.push(`${income.length} income · expense pending`);
+    if(expense.length) parts.push(`${expense.length} expense · income pending`);
+    document.getElementById('contra-pending-alert-detail').textContent = `${parts.join(' · ')} — tap to match them.`;
+  }
+
+  // Candidates from the opposite list, same person, any amount/category — closest
+  // amount to the pending entry sorted first. Entries already contra or themselves
+  // pending a contra match are excluded (nothing to pair against there).
+  function getContraMatchCandidates(pendingEntry, oppositeType){
+    return DATA[oppositeType]
+      .filter(e => (e.person || '') === (pendingEntry.person || '') && !e.isContra && !e.contraPending)
+      .slice()
+      .sort((a,b)=> Math.abs(a.amount - pendingEntry.amount) - Math.abs(b.amount - pendingEntry.amount));
+  }
+
+  function renderContraPendingRow(type, e){
+    const oppositeType = type === 'income' ? 'expense' : 'income';
+    const oppLabel = oppositeType === 'income' ? 'income' : 'expense';
+    const whomLabel = type === 'income' ? 'With' : 'By';
+    const candidates = getContraMatchCandidates(e, oppositeType);
+    const candOpts = candidates.map(c=> `<option value="${c.id}">${fmtINR(c.amount)} · ${escapeHtml(c.category)} · ${fmtDate(c.date)}</option>`).join('');
+    const catList = oppositeType === 'income' ? incomeCategories : expenseCategories;
+    const catOpts = catList.map(c=> `<option>${escapeHtml(c)}</option>`).join('');
+    const detailBit = e.note || e.desc ? ' · '+escapeHtml(e.note || e.desc) : '';
+    return `<div class="pending-row contra-pending-row" data-type="${type}" data-id="${e.id}">
+      <div class="pending-row-top">
+        <div class="pending-row-date">${fmtDate(e.date)} · ${escapeHtml(e.category)}</div>
+        <div class="pending-row-amt">${fmtINR(e.amount)}</div>
+      </div>
+      <div class="pending-row-note">${type === 'income' ? 'Income' : 'Expense'} · ${whomLabel} ${escapeHtml(e.person || '—')}${detailBit} · needs a matching ${oppLabel} entry</div>
+      <div class="pending-settle contra-pending-settle">
+        <button type="button" class="contra-remove-btn" data-type="${type}" data-id="${e.id}">Remove from contra</button>
+        <div class="eyebrow">Match an existing ${oppLabel} entry</div>
+        <select class="contra-match-select" data-type="${type}" data-id="${e.id}">
+          <option value="">— write a new entry instead —</option>
+          ${candOpts}
+        </select>
+        <div class="eyebrow">…or write a new ${oppLabel} entry (with ${escapeHtml(e.person || '—')} — fixed)</div>
+        <div class="contra-new-fields" data-type="${type}" data-id="${e.id}">
+          <input type="date" class="cne-date" value="${todayISO()}">
+          <select class="cne-category">${catOpts}</select>
+          <input type="number" class="cne-amount" min="0" step="0.01" value="${e.amount}">
+          <div class="seg cne-mode"><button type="button" data-val="Bank" class="active">Bank</button><button type="button" data-val="Cash">Cash</button></div>
+          <input type="text" class="cne-desc" placeholder="${oppositeType === 'expense' ? 'Description' : 'Note (optional)'}">
+        </div>
+        <button type="button" class="pending-update-btn contra-resolve-btn" data-type="${type}" data-id="${e.id}">Confirm match</button>
+      </div>
+    </div>`;
+  }
+
+  function renderContraPendingList(){
+    const { income, expense } = getContraPendingEntries();
+    const rows = [
+      ...income.map(e=>({type:'income', e})),
+      ...expense.map(e=>({type:'expense', e}))
+    ].sort((a,b)=> b.e.date.localeCompare(a.e.date));
+
+    if(rows.length === 0){
+      contraPendingList.innerHTML = '<div class="pending-empty">Nothing pending — all caught up.</div>';
+      return;
+    }
+    contraPendingList.innerHTML = rows.map(r=> renderContraPendingRow(r.type, r.e)).join('');
+
+    contraPendingList.querySelectorAll('.cne-mode').forEach(seg=>{
+      seg.querySelectorAll('button').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+          b.classList.add('active');
+        });
+      });
+    });
+
+    contraPendingList.querySelectorAll('.contra-match-select').forEach(sel=>{
+      const row = sel.closest('.contra-pending-row');
+      const newFields = row.querySelector('.contra-new-fields');
+      const sync = ()=>{ newFields.style.display = sel.value ? 'none' : ''; };
+      sel.addEventListener('change', sync);
+      sync();
+    });
+
+    contraPendingList.querySelectorAll('.contra-remove-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const { type, id } = btn.dataset;
+        const entry = DATA[type].find(x=>x.id === id);
+        if(!entry) return;
+        const ok = await askConfirm(`Remove the contra flag from this ${fmtINR(entry.amount)} ${type} entry? It'll go back to being a normal entry.`, {title:'Remove from contra?', okText:'Remove', danger:true});
+        if(!ok) return;
+        entry.contraPending = false;
+        await saveData();
+        renderContraPendingList();
+        renderContraPendingAlert();
+        renderFeed();
+        if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+        pushToSheet();
+      });
+    });
+
+    contraPendingList.querySelectorAll('.contra-resolve-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const { type, id } = btn.dataset;
+        const row = btn.closest('.contra-pending-row');
+        const sel = row.querySelector('.contra-match-select');
+        const matchId = sel.value;
+
+        let newEntryData = null;
+        if(!matchId){
+          const amount = parseFloat(row.querySelector('.cne-amount').value) || 0;
+          if(amount <= 0){ alert('Enter a valid amount, or pick an existing entry to match instead.'); return; }
+          newEntryData = {
+            date: row.querySelector('.cne-date').value || todayISO(),
+            category: row.querySelector('.cne-category').value,
+            amount,
+            mode: row.querySelector('.cne-mode button.active').dataset.val,
+            desc: row.querySelector('.cne-desc').value.trim()
+          };
+        }
+
+        const pendingEntry = DATA[type].find(x=>x.id === id);
+        if(!pendingEntry) return;
+        const oppositeType = type === 'income' ? 'expense' : 'income';
+        const cpAmt = matchId ? (DATA[oppositeType].find(x=>x.id===matchId)?.amount || 0) : newEntryData.amount;
+        const msg = cpAmt === pendingEntry.amount
+          ? `Match this ${fmtINR(pendingEntry.amount)} ${type} entry as a contra pair? Both entries will be left out of your income/expense totals.`
+          : `Match this ${fmtINR(pendingEntry.amount)} ${type} entry against ${fmtINR(cpAmt)}? ${fmtINR(Math.min(cpAmt,pendingEntry.amount))} will be treated as the contra pair, and the remaining ${fmtINR(Math.abs(cpAmt-pendingEntry.amount))} will be kept as a normal entry.`;
+        const ok = await askConfirm(msg, {title:'Confirm match?', okText:'Confirm', danger:false});
+        if(!ok) return;
+
+        await resolveContraPending(type, id, matchId || null, newEntryData);
+      });
+    });
+  }
+
+  // Resolves a pending entry against either an existing opposite-type entry
+  // (matchId) or a freshly written one (newEntryData). Whichever side has the
+  // larger amount keeps the difference as a normal (non-contra) entry with the
+  // same details; the matched portion on both sides becomes isContra/contraReviewed,
+  // exactly like the existing auto-detect contra flow, so it shows up in the
+  // existing full-record table with the existing Reverse button.
+  async function resolveContraPending(pendingType, pendingId, matchId, newEntryData){
+    const pendingEntry = DATA[pendingType].find(e=>e.id === pendingId);
+    if(!pendingEntry) return;
+    const oppositeType = pendingType === 'income' ? 'expense' : 'income';
+
+    let counterpart, isNew = false;
+    if(matchId){
+      counterpart = DATA[oppositeType].find(e=>e.id === matchId);
+      if(!counterpart) return;
+    } else {
+      isNew = true;
+      counterpart = {
+        id: uid(),
+        date: newEntryData.date,
+        category: newEntryData.category,
+        amount: newEntryData.amount,
+        mode: newEntryData.mode,
+        person: pendingEntry.person || ''
+      };
+      if(oppositeType === 'expense'){ counterpart.desc = newEntryData.desc || ''; counterpart.forWhom = ''; }
+      else { counterpart.note = newEntryData.desc || ''; }
+    }
+
+    const pendingAmt = pendingEntry.amount;
+    const cpAmt = counterpart.amount;
+    const pairedAmt = Math.min(pendingAmt, cpAmt);
+    const diff = Math.abs(pendingAmt - cpAmt);
+
+    pendingEntry.amount = pairedAmt;
+    pendingEntry.isContra = true;
+    pendingEntry.contraReviewed = true;
+    pendingEntry.contraPending = false;
+
+    counterpart.amount = pairedAmt;
+    counterpart.isContra = true;
+    counterpart.contraReviewed = true;
+    counterpart.contraPending = false;
+
+    if(isNew) DATA[oppositeType].push(counterpart);
+
+    if(diff > 0){
+      if(pendingAmt > cpAmt){
+        const leftover = { ...pendingEntry, id: uid(), amount: diff, isContra:false, contraReviewed:false, contraPending:false };
+        DATA[pendingType].push(leftover);
+      } else {
+        const leftover = { ...counterpart, id: uid(), amount: diff, isContra:false, contraReviewed:false, contraPending:false };
+        DATA[oppositeType].push(leftover);
+      }
+    }
+
+    await saveData();
+    renderContraPendingList();
+    renderContraPendingAlert();
+    renderContraAlert();
+    renderFeed();
+    if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+    pushToSheet();
+  }
+
+  function openContraPendingOverlay(){ renderContraPendingList(); contraPendingOverlay.classList.add('show'); }
+  function closeContraPendingOverlay(){ contraPendingOverlay.classList.remove('show'); }
+
+  contraPendingAlertCard.addEventListener('click', openContraPendingOverlay);
+  document.getElementById('contra-pending-close-btn').addEventListener('click', closeContraPendingOverlay);
+  contraPendingOverlay.addEventListener('click', (e)=>{ if(e.target === contraPendingOverlay) closeContraPendingOverlay(); });
+
   // ---------- Login ----------
   const AUTH_KEY = 'khaata-remember-auth';
   const LOGIN_ID = '21122003';   // 21 12 2003, digits only
@@ -3866,6 +4202,7 @@
     renderPendingAlert();
     renderSalaryCreditAlert();
     renderContraAlert();
+    renderContraPendingAlert();
     setPreset('month');
     await pullFromSheet();
     renderExpenseCategorySelect();
@@ -3873,6 +4210,7 @@
     renderPendingAlert();
     renderSalaryCreditAlert();
     renderContraAlert();
+    renderContraPendingAlert();
     if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
   })();
 
