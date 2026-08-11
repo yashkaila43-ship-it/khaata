@@ -3382,6 +3382,8 @@
         const person = sel.value;
         const entry = DATA.income.find(e => e.id === id);
         if(!entry) return;
+        const amtTxt = fmtINR(entry.amount);
+        if(!confirm(`Update this entry (${amtTxt}) as received via ${mode} from ${person}?`)) return;
         entry.mode = mode;
         entry.person = person;
         entry.pending = false;
@@ -3445,6 +3447,7 @@
         const id = btn.dataset.id;
         const entry = DATA.income.find(e => e.id === id);
         if(!entry) return;
+        if(!confirm(`Confirm ${fmtINR(entry.amount)} salary has been credited to the account?`)) return;
         entry.creditPending = false;
         await saveData();
         renderSalaryCreditList();
