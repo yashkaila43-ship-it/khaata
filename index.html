@@ -834,6 +834,41 @@
   .contra-toggle-btn.active{border-style:solid; border-color:var(--navy); color:var(--navy); background:var(--navy-soft);}
   .contra-toggle-btn:disabled{opacity:.55; cursor:not-allowed;}
 
+  /* ---------- Split expense (one payment broken into several expense lines) ---------- */
+  .split-toggle-hint{font-size:11px; color:var(--muted); margin-top:6px; line-height:1.4;}
+  .split-remaining-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:11px 14px; border-radius:10px; background:var(--navy-soft); color:var(--navy);
+    margin-bottom:12px; font-family:'Inter Tight',sans-serif; font-weight:700; font-size:13.5px;
+    transition:background var(--dur) var(--ease), color var(--dur) var(--ease);
+  }
+  .split-remaining-bar span:first-child{font-family:'Inter',sans-serif; font-weight:600; font-size:12px; opacity:.85;}
+  .split-remaining-bar.zero{background:var(--income-soft); color:var(--income);}
+  .split-remaining-bar.over{background:var(--expense-soft); color:var(--expense);}
+  .split-row{
+    border:1.5px dashed var(--line); border-radius:12px; padding:14px; margin-bottom:12px;
+    background:var(--paper); animation:cardIn .3s var(--ease) both;
+  }
+  .split-row-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+  .split-row-label{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted);}
+  .split-row-remove{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    font-family:'Inter',sans-serif; font-size:11.5px; font-weight:600;
+    padding:4px 9px; border-radius:7px; cursor:pointer;
+    transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  }
+  .split-row-remove:hover{color:var(--expense); border-color:var(--expense); background:var(--expense-soft);}
+  .split-row .field{margin-bottom:11px;}
+  .split-row .field:last-child{margin-bottom:0;}
+  .split-add-row-btn{
+    width:100%; padding:10px; border-radius:9px; border:1.5px dashed var(--line); background:var(--surface);
+    font-family:'Inter Tight',sans-serif; font-weight:600; font-size:12.5px; color:var(--ink-soft); cursor:pointer;
+    margin-bottom:6px; transition:border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  .split-add-row-btn:hover{border-color:var(--ink); color:var(--ink);}
+  .split-add-row-btn:disabled{opacity:.5; cursor:not-allowed; border-color:var(--line); color:var(--ink-soft);}
+  .split-add-row-btn:disabled:hover{border-color:var(--line); color:var(--ink-soft);}
+
   /* ---------- Contra — match pending (new alert, separate from the old auto-detect alert) ---------- */
   .contra-pending-settle .eyebrow{margin:10px 0 6px;}
   .contra-new-fields{display:flex; flex-direction:column; gap:8px;}
@@ -984,23 +1019,45 @@
             <input type="date" id="exp-date" required>
           </div>
           <div class="field">
-            <label>Amount</label>
+            <label id="exp-amount-label">Amount</label>
             <div class="amount-field">
               <span class="rupee">₹</span>
               <input type="number" id="exp-amount" min="0" step="0.01" placeholder="0.00" required>
             </div>
           </div>
           <div class="field">
-            <label>Description</label>
-            <div class="desc-autocomplete">
-              <textarea id="exp-desc" placeholder="What was this for? e.g. milk, mint..." required autocomplete="off"></textarea>
-              <div class="desc-suggest" id="exp-desc-suggest"></div>
+            <button type="button" class="contra-toggle-btn" id="exp-split-toggle" data-active="false">Split into multiple expenses</button>
+            <div class="split-toggle-hint">Turn this on to break one payment (e.g. ₹120 withdrawn at once) into several expense lines. Date, paid via and by whom are shared; each line gets its own category, description, for whom and amount.</div>
+          </div>
+
+          <div id="exp-single-fields">
+            <div class="field">
+              <label>Description</label>
+              <div class="desc-autocomplete">
+                <textarea id="exp-desc" placeholder="What was this for? e.g. milk, mint..." required autocomplete="off"></textarea>
+                <div class="desc-suggest" id="exp-desc-suggest"></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Category <button type="button" class="pencil-btn" id="manage-cat-btn" title="Add or remove categories">✎</button></label>
+              <select id="exp-category"></select>
+            </div>
+            <div class="field">
+              <label>For whom <button type="button" class="pencil-btn" id="manage-people-btn-exp-forwhom" title="Add, rename or remove names">✎</button></label>
+              <div class="msel" id="exp-forwhom" data-placeholder="Select for whom…"></div>
+              <div class="field-hint">Select one, or select several to split this amount equally between them (only when the dashboard is filtered to one of them).</div>
             </div>
           </div>
-          <div class="field">
-            <label>Category <button type="button" class="pencil-btn" id="manage-cat-btn" title="Add or remove categories">✎</button></label>
-            <select id="exp-category"></select>
+
+          <div id="exp-split-fields" style="display:none;">
+            <div class="split-remaining-bar" id="exp-split-remaining-bar">
+              <span>Remaining to allocate</span>
+              <span id="exp-split-remaining-val">₹0</span>
+            </div>
+            <div id="exp-split-rows"></div>
+            <button type="button" class="split-add-row-btn" id="exp-split-add-row">+ Add another expense</button>
           </div>
+
           <div class="field">
             <label>Paid via</label>
             <div class="seg" id="exp-mode">
@@ -1012,16 +1069,12 @@
             <label>By whom <button type="button" class="pencil-btn" id="manage-people-btn-exp" title="Add, rename or remove names">✎</button></label>
             <select id="exp-person"></select>
           </div>
-          <div class="field">
-            <label>For whom <button type="button" class="pencil-btn" id="manage-people-btn-exp-forwhom" title="Add, rename or remove names">✎</button></label>
-            <div class="msel" id="exp-forwhom" data-placeholder="Select for whom…"></div>
-            <div class="field-hint">Select one, or select several to split this amount equally between them (only when the dashboard is filtered to one of them).</div>
-          </div>
-          <div class="field">
+          <div class="field" id="exp-contra-field">
             <button type="button" class="contra-toggle-btn" id="exp-contra-btn" data-active="false">Mark as contra (internal transfer)</button>
           </div>
-          <button type="submit" class="submit-btn">Add expense entry</button>
+          <button type="submit" class="submit-btn" id="exp-submit-btn">Add expense entry</button>
           <div class="sync-block-msg" id="exp-sync-msg">Waiting for Google Sheets to sync — entries can't be added until it reconnects.</div>
+          <div class="sync-block-msg" id="exp-split-err" style="display:none;"></div>
           <div class="form-msg" id="exp-msg">Entry added ✓</div>
         </form>
       </div>
@@ -1934,7 +1987,13 @@
     const expBtn = document.querySelector('#expense-form .submit-btn');
     const incMsg = document.getElementById('inc-sync-msg');
     const expMsg = document.getElementById('exp-sync-msg');
-    [incBtn, expBtn].forEach(b => { if(b) b.disabled = !sheetLinked; });
+    if(incBtn) incBtn.disabled = !sheetLinked;
+    if(expBtn){
+      // In split mode, the split-remaining check (which also factors in sheetLinked)
+      // owns expBtn.disabled — see updateSplitRemaining() below.
+      if(typeof expSplitMode !== 'undefined' && expSplitMode){ updateSplitRemaining(); }
+      else expBtn.disabled = !sheetLinked;
+    }
     [incMsg, expMsg].forEach(m => { if(m) m.classList.toggle('show', !sheetLinked); });
   }
 
@@ -2298,16 +2357,305 @@
     if(!expDescSuggest.contains(e.target) && e.target !== expDescInput) hideDescSuggestions();
   });
 
+  // ---------- Split expense (one payment broken into several expense lines) ----------
+  // "Split into multiple expenses" replaces the single Description/Category/For whom
+  // block with a repeatable set of lines, each with its own category (autocomplete-
+  // fed, same as normal), description (with the same autocomplete), for whom, and
+  // amount. Date, Paid via and By whom stay shared across every line, entered once.
+  // The Amount field becomes the running "Total amount" for the whole payment — the
+  // submit button only unlocks once every line's amount adds up to exactly that
+  // total. On save, each line becomes its own fully independent expense entry (own
+  // id, own contra eligibility going forward, own edit/delete) — contra matching,
+  // editing, and everything else behaves exactly as it does for any other entry.
+  const expSplitToggleBtn = document.getElementById('exp-split-toggle');
+  const expSingleFields = document.getElementById('exp-single-fields');
+  const expSplitFieldsWrap = document.getElementById('exp-split-fields');
+  const expSplitRowsWrap = document.getElementById('exp-split-rows');
+  const expSplitRemainingBar = document.getElementById('exp-split-remaining-bar');
+  const expSplitRemainingVal = document.getElementById('exp-split-remaining-val');
+  const expSplitAddRowBtn = document.getElementById('exp-split-add-row');
+  const expAmountLabel = document.getElementById('exp-amount-label');
+  const expAmountInput = document.getElementById('exp-amount');
+  const expSubmitBtn = document.getElementById('exp-submit-btn');
+  const expContraField = document.getElementById('exp-contra-field');
+  let expSplitMode = false;
+  let splitRowSeq = 0;
+
+  function splitRowTemplate(rowNum){
+    const catOpts = expenseCategories.map(c=>`<option>${escapeHtml(c)}</option>`).join('');
+    return `<div class="split-row" data-row="${rowNum}">
+        <div class="split-row-head">
+          <span class="split-row-label">Expense ${rowNum}</span>
+          <button type="button" class="split-row-remove" data-row="${rowNum}">Remove</button>
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <div class="desc-autocomplete">
+            <textarea class="split-desc" autocomplete="off" placeholder="What was this for? e.g. milk, mint..."></textarea>
+            <div class="desc-suggest split-desc-suggest"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <select class="split-category">${catOpts}</select>
+        </div>
+        <div class="field">
+          <label>For whom</label>
+          <div class="msel split-forwhom" data-placeholder="Select for whom…"></div>
+        </div>
+        <div class="field">
+          <label>Amount</label>
+          <div class="amount-field">
+            <span class="rupee">₹</span>
+            <input type="number" class="split-amount" min="0" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Same description -> category autocomplete as the main expense form, scoped to
+  // one split row's own textarea/suggestion box/category select.
+  function wireSplitRowDescAutocomplete(row){
+    const descInput = row.querySelector('.split-desc');
+    const suggestBox = row.querySelector('.split-desc-suggest');
+    const catSelect = row.querySelector('.split-category');
+    const hide = ()=>{ suggestBox.innerHTML = ''; suggestBox.classList.remove('show'); };
+    function render(query){
+      const q = query.trim().toLowerCase();
+      if(!q){ hide(); return; }
+      const map = getDescCategoryMap();
+      const matches = Object.values(map)
+        .filter(v => v.original.toLowerCase().includes(q))
+        .sort((a,b) => (b.lastDate||'').localeCompare(a.lastDate||''))
+        .slice(0, 8);
+      if(matches.length === 0){ hide(); return; }
+      suggestBox.innerHTML = matches.map(m=>{
+        const cat = bestCategoryFor(m);
+        return `<div class="desc-suggest-item" data-desc="${escapeHtml(m.original)}" data-cat="${escapeHtml(cat||'')}">
+          <span class="ds-text">${escapeHtml(m.original)}</span>
+          ${cat ? `<span class="ds-cat">${escapeHtml(cat)}</span>` : ''}
+        </div>`;
+      }).join('');
+      suggestBox.classList.add('show');
+      suggestBox.querySelectorAll('.desc-suggest-item').forEach(item=>{
+        item.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          descInput.value = item.dataset.desc;
+          const cat = item.dataset.cat;
+          if(cat && [...catSelect.options].some(o => o.value === cat)) catSelect.value = cat;
+          hide();
+        });
+      });
+    }
+    descInput.addEventListener('input', (e)=>{ render(e.target.value); updateSplitRemaining(); });
+    descInput.addEventListener('focus', (e)=>{ if(e.target.value.trim()) render(e.target.value); });
+    descInput.addEventListener('blur', ()=> setTimeout(hide, 150));
+  }
+
+  function renumberSplitRows(){
+    expSplitRowsWrap.querySelectorAll('.split-row').forEach((row, idx)=>{
+      row.querySelector('.split-row-label').textContent = 'Expense ' + (idx+1);
+    });
+  }
+
+  // Sum of every existing split row's amount (used to work out what's left
+  // to allocate before a new row is added).
+  function currentSplitSum(){
+    let sum = 0;
+    expSplitRowsWrap.querySelectorAll('.split-amount').forEach(inp=>{
+      sum += parseFloat(inp.value) || 0;
+    });
+    return sum;
+  }
+
+  function addSplitRow(){
+    // Work out what's left of the Total amount before this row exists, so
+    // the new row can be prefilled with it — the person can still change it.
+    const total = parseFloat(expAmountInput.value) || 0;
+    const remainingBefore = Math.round((total - currentSplitSum()) * 100) / 100;
+
+    splitRowSeq += 1;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = splitRowTemplate(splitRowSeq);
+    const rowEl = wrap.firstElementChild;
+    expSplitRowsWrap.appendChild(rowEl);
+    setMultiSelectOptions(rowEl.querySelector('.split-forwhom'), forWhomPeopleList, []);
+    wireSplitRowDescAutocomplete(rowEl);
+    const amountInput = rowEl.querySelector('.split-amount');
+    if(remainingBefore > 0.005){
+      amountInput.value = remainingBefore;
+    }
+    amountInput.addEventListener('input', updateSplitRemaining);
+    rowEl.querySelector('.split-row-remove').addEventListener('click', ()=>{
+      rowEl.remove();
+      renumberSplitRows();
+      updateSplitRemaining();
+    });
+    updateSplitRemaining();
+    return rowEl;
+  }
+
+  // Recomputes Total amount minus the sum of every line's amount, live, as either
+  // the total or any line amount/description changes. The submit button stays
+  // disabled until the remaining is exactly zero, the total is > 0, there's at
+  // least one line, and every line with an amount also has a description.
+  // The dashboard/feed currency formatter rounds to whole rupees, which is
+  // fine for display elsewhere — but here it was hiding paisa-level mismatches
+  // (e.g. actual remaining ₹0.35 would show as "₹0"), leaving the submit
+  // button disabled with no visible reason why. This one always shows the
+  // exact remaining, to 2 decimals only when there's a fractional amount.
+  const fmtINRExact = (n) => {
+    const v = Math.round((n || 0) * 100) / 100;
+    const opts = Number.isInteger(v)
+      ? {style:'currency', currency:'INR', maximumFractionDigits:0}
+      : {style:'currency', currency:'INR', minimumFractionDigits:2, maximumFractionDigits:2};
+    return new Intl.NumberFormat('en-IN', opts).format(v);
+  };
+
+  function updateSplitRemaining(){
+    if(!expSplitMode) return;
+    const total = parseFloat(expAmountInput.value) || 0;
+    const rowsEls = expSplitRowsWrap.querySelectorAll('.split-row');
+    let sum = 0, allDescFilled = true;
+    rowsEls.forEach(row=>{
+      const amt = parseFloat(row.querySelector('.split-amount').value) || 0;
+      sum += amt;
+      const desc = row.querySelector('.split-desc').value.trim();
+      if(amt > 0 && !desc) allDescFilled = false;
+    });
+    const remaining = Math.round((total - sum) * 100) / 100;
+    expSplitRemainingVal.textContent = fmtINRExact(remaining);
+    expSplitRemainingBar.classList.remove('zero','over');
+    const ok = Math.abs(remaining) < 0.005 && total > 0 && rowsEls.length > 0 && allDescFilled;
+    if(remaining < -0.005) expSplitRemainingBar.classList.add('over');
+    else if(ok) expSplitRemainingBar.classList.add('zero');
+    if(expSubmitBtn) expSubmitBtn.disabled = !ok || !sheetLinked;
+    // Once every rupee of the Total amount is allocated across the rows already
+    // on screen, there's nothing left for another row to take — lock "+ Add
+    // another expense" until the total goes up or an existing row's amount
+    // comes back down.
+    if(expSplitAddRowBtn) expSplitAddRowBtn.disabled = (remaining < 0.005 && total > 0);
+  }
+
+  function resetSplitRows(){
+    expSplitRowsWrap.innerHTML = '';
+    splitRowSeq = 0;
+    addSplitRow();
+  }
+
+  function setSplitMode(on){
+    expSplitMode = on;
+    expSplitToggleBtn.dataset.active = on ? 'true' : 'false';
+    expSplitToggleBtn.classList.toggle('active', on);
+    expSplitToggleBtn.textContent = on ? 'Splitting into multiple expenses ✓ — click to turn off' : 'Split into multiple expenses';
+    expSingleFields.style.display = on ? 'none' : '';
+    expSplitFieldsWrap.style.display = on ? '' : 'none';
+    expAmountLabel.textContent = on ? 'Total amount' : 'Amount';
+    expContraField.style.display = on ? 'none' : '';
+    // #exp-desc is `required`, and normally sits inside #exp-single-fields
+    // which we just hid via display:none above. Modern desktop browsers skip
+    // required-field validation for anything not rendered, but some mobile
+    // browsers/embedded webviews don't reliably honor that for a hidden
+    // ancestor — which would silently block the whole form submit (no error,
+    // no console log, nothing) before any of our JS even runs. Toggling
+    // `required` directly removes any dependency on that browser behavior.
+    document.getElementById('exp-desc').required = !on;
+    if(on){
+      setExpContraState(false);
+      resetSplitRows();
+      const errBox = document.getElementById('exp-split-err');
+      if(errBox) errBox.style.display = 'none';
+    } else {
+      expSplitRowsWrap.innerHTML = '';
+      updateEntryButtonsAvailability();
+    }
+  }
+
+  expSplitToggleBtn.addEventListener('click', ()=> setSplitMode(!expSplitMode));
+  expSplitAddRowBtn.addEventListener('click', ()=> addSplitRow());
+  expAmountInput.addEventListener('input', updateSplitRemaining);
+
   document.getElementById('expense-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
+    const sharedDate = document.getElementById('exp-date').value;
+    const sharedMode = segVal('exp-mode');
+    const sharedPerson = expPerson.value;
+
+    if(expSplitMode){
+      try{
+        const total = parseFloat(expAmountInput.value) || 0;
+        const rows = Array.from(expSplitRowsWrap.querySelectorAll('.split-row'));
+        const lineEntries = [];
+        const skippedRows = [];
+        let sum = 0;
+        rows.forEach((row, idx)=>{
+          const amount = parseFloat(row.querySelector('.split-amount').value) || 0;
+          const desc = row.querySelector('.split-desc').value.trim();
+          const category = row.querySelector('.split-category').value;
+          const forWhomList = getSelectedValues(row.querySelector('.split-forwhom'));
+          if(amount <= 0 || !desc){ skippedRows.push(idx+1); return; }
+          sum += amount;
+          lineEntries.push({
+            id: uid(),
+            date: sharedDate,
+            amount,
+            category,
+            mode: sharedMode,
+            person: sharedPerson,
+            forWhom: forWhomList.join(', '),
+            forWhomList,
+            desc
+          });
+        });
+        // Guard against a stale/disabled-button race — re-check the exact same
+        // condition that unlocks the submit button before actually saving. If
+        // this fires even though the bar looked done, it means the button's
+        // enabled state was stale (e.g. a row changed without the check
+        // re-running) — surface exactly why instead of silently doing nothing.
+        const diff = Math.round((total - sum) * 100) / 100;
+        const remainingOk = Math.abs(diff) < 0.005 && total > 0 && lineEntries.length > 0;
+        const errBox = document.getElementById('exp-split-err');
+        if(!remainingOk){
+          updateSplitRemaining();
+          let why = '';
+          if(total <= 0) why = 'the Total amount is ₹0.';
+          else if(skippedRows.length) why = `Expense ${skippedRows.join(', ')} is missing an amount or a description, so it wasn't counted.`;
+          else if(diff !== 0) why = `the lines add up to ₹${sum.toFixed(2)} but the total is ₹${total.toFixed(2)} — off by ₹${Math.abs(diff).toFixed(2)}.`;
+          else why = 'no expense lines are filled in yet.';
+          if(errBox){ errBox.textContent = "Couldn't add this — " + why; errBox.style.display = 'block'; }
+          console.warn("Split expense not added:", why);
+          return;
+        }
+        if(errBox) errBox.style.display = 'none';
+
+        lineEntries.forEach(en => DATA.expense.push(en));
+        await saveData();
+        e.target.reset();
+        document.getElementById('exp-date').value = todayISO();
+        document.querySelector('#exp-mode button[data-val="Bank"]').click();
+        setSplitMode(false);
+        flashMsg('exp-msg');
+        renderFeed();
+        renderContraAlert();
+        renderContraPendingAlert();
+        if(document.getElementById('view-dashboard').classList.contains('active')) renderDashboard();
+        pushToSheet();
+      }catch(err){
+        console.error('Failed to add split expense', err);
+        const errBox = document.getElementById('exp-split-err');
+        if(errBox){ errBox.textContent = 'Something went wrong adding this expense: ' + err.message; errBox.style.display = 'block'; }
+      }
+      return;
+    }
+
     const expForWhomList = getSelectedValues(expForWhom);
     const entry = {
       id: uid(),
-      date: document.getElementById('exp-date').value,
+      date: sharedDate,
       amount: parseFloat(document.getElementById('exp-amount').value) || 0,
       category: document.getElementById('exp-category').value,
-      mode: segVal('exp-mode'),
-      person: expPerson.value,
+      mode: sharedMode,
+      person: sharedPerson,
       forWhom: expForWhomList.join(', '),
       forWhomList: expForWhomList,
       desc: document.getElementById('exp-desc').value.trim(),
