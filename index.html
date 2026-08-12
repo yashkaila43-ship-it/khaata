@@ -165,6 +165,9 @@
   .form-pane{padding:22px;}
   .field{margin-bottom:15px;}
   .field label{display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px; letter-spacing:.02em;}
+  .field-hint{font-size:11px; color:var(--muted); margin-top:5px; line-height:1.4;}
+  select[multiple]{padding:6px !important; height:auto;}
+  select[multiple] option{padding:6px 8px; border-radius:6px;}
   .field input[type="text"], .field input[type="number"], .field input[type="date"], .field select, .field textarea{
     width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:9px; background:var(--paper);
     font-family:'Inter',sans-serif; font-size:16px; color:var(--ink); outline:none;
@@ -962,7 +965,8 @@
           </div>
           <div class="field">
             <label>For whom <button type="button" class="pencil-btn" id="manage-people-btn-exp-forwhom" title="Add, rename or remove names">✎</button></label>
-            <select id="exp-forwhom"></select>
+            <select id="exp-forwhom" multiple size="4"></select>
+            <div class="field-hint">Select one, or select several to split this amount equally between them (only when the dashboard is filtered to one of them).</div>
           </div>
           <div class="field">
             <button type="button" class="contra-toggle-btn" id="exp-contra-btn" data-active="false">Mark as contra (internal transfer)</button>
@@ -1314,7 +1318,8 @@
         </div>
         <div class="field">
           <label>For whom</label>
-          <select id="edit-exp-forwhom"></select>
+          <select id="edit-exp-forwhom" multiple size="4"></select>
+          <div class="field-hint">Select one, or select several to split this amount equally between them (only when the dashboard is filtered to one of them).</div>
         </div>
         <div class="field">
           <button type="button" class="contra-toggle-btn" id="edit-exp-contra-btn" data-active="false">Mark as contra (internal transfer)</button>
@@ -1613,12 +1618,28 @@
     try{ localStorage.setItem(FORWHOM_PEOPLE_KEY, JSON.stringify(forWhomPeopleList)); }
     catch(e){ console.error('Saving for-whom people failed', e); }
   }
-  function renderForWhomSelect(preferredValue){
+  // ---------- Multi-select helpers for "For whom" (expense split-between-people) ----------
+  function getSelectedValues(sel){
+    return Array.from(sel.selectedOptions).map(o=>o.value);
+  }
+  function setSelectedValues(sel, list){
+    const set = new Set(list || []);
+    Array.from(sel.options).forEach(o=>{ o.selected = set.has(o.value); });
+  }
+  // Reads the "who this expense is for" as an array regardless of whether the
+  // entry predates the multi-select feature (forWhom string only) or has an
+  // explicit forWhomList from a single/multi selection made after this change.
+  function getForWhomList(e){
+    if(Array.isArray(e.forWhomList) && e.forWhomList.length) return e.forWhomList;
+    return e.forWhom ? [e.forWhom] : [];
+  }
+
+  function renderForWhomSelect(preferredList){
     const sel = document.getElementById('exp-forwhom');
     if(!sel) return;
-    const cur = preferredValue || sel.value;
-    sel.innerHTML = forWhomPeopleList.map(p => `<option>${escapeHtml(p)}</option>`).join('');
-    if(cur && forWhomPeopleList.includes(cur)) sel.value = cur;
+    const cur = preferredList || getSelectedValues(sel);
+    sel.innerHTML = forWhomPeopleList.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    setSelectedValues(sel, cur);
   }
   loadForWhomPeopleList();
   renderForWhomSelect();
@@ -1718,13 +1739,25 @@
     const s = String(v).trim().toLowerCase();
     return s === 'true' || s === 'yes' || s === '1';
   }
+  // Sheets round-trips arrays (e.g. forWhomList, for a split expense) as a
+  // JSON string in a single cell — parse it back on the way in. Already-array
+  // values (fresh local data, never synced yet) pass through unchanged.
+  function toForWhomList(v){
+    if(Array.isArray(v)) return v;
+    if(v === undefined || v === null || v === '') return undefined;
+    try{
+      const parsed = JSON.parse(v);
+      return Array.isArray(parsed) ? parsed : undefined;
+    }catch(err){ return undefined; }
+  }
   function normalizeEntries(list){
     return (list || []).map(it => ({
       ...it,
       date: toISODate(it.date),
       isContra: toBool(it.isContra),
       contraReviewed: toBool(it.contraReviewed),
-      contraPending: toBool(it.contraPending)
+      contraPending: toBool(it.contraPending),
+      forWhomList: toForWhomList(it.forWhomList)
     })).filter(it => it.date);
   }
 
@@ -2111,6 +2144,7 @@
 
   document.getElementById('expense-form').addEventListener('submit', async (e)=>{
     e.preventDefault();
+    const expForWhomList = getSelectedValues(expForWhom);
     const entry = {
       id: uid(),
       date: document.getElementById('exp-date').value,
@@ -2118,7 +2152,8 @@
       category: document.getElementById('exp-category').value,
       mode: segVal('exp-mode'),
       person: expPerson.value,
-      forWhom: expForWhom.value,
+      forWhom: expForWhomList.join(', '),
+      forWhomList: expForWhomList,
       desc: document.getElementById('exp-desc').value.trim(),
       contraPending: expContraBtn.dataset.active === 'true'
     };
@@ -2128,6 +2163,7 @@
     e.target.reset();
     document.getElementById('exp-date').value = todayISO();
     document.querySelector('#exp-mode button[data-val="Bank"]').click();
+    setSelectedValues(expForWhom, []);
     hideDescSuggestions();
     setExpContraState(false);
     flashMsg('exp-msg');
@@ -2161,7 +2197,7 @@
     const peopleOpts = peopleList.map(p=>`<option>${escapeHtml(p)}</option>`).join('');
     document.getElementById('edit-inc-person').innerHTML = peopleOpts;
     document.getElementById('edit-exp-person').innerHTML = peopleOpts;
-    document.getElementById('edit-exp-forwhom').innerHTML = forWhomPeopleList.map(p=>`<option>${escapeHtml(p)}</option>`).join('');
+    document.getElementById('edit-exp-forwhom').innerHTML = forWhomPeopleList.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
   }
 
   // Same field-visibility rules as the add form, but never resets a value on its
@@ -2242,7 +2278,7 @@
       const personSel = document.getElementById('edit-exp-person');
       if(entry.person && peopleList.includes(entry.person)) personSel.value = entry.person;
       const forWhomSel = document.getElementById('edit-exp-forwhom');
-      if(entry.forWhom && forWhomPeopleList.includes(entry.forWhom)) forWhomSel.value = entry.forWhom;
+      setSelectedValues(forWhomSel, getForWhomList(entry).filter(n=>forWhomPeopleList.includes(n)));
       setEditExpContraState(!!entry.contraPending);
       editExpContraBtn.disabled = !!entry.isContra;
       editExpContraBtn.title = entry.isContra ? 'Already a confirmed contra entry — reverse it from the contra record table first.' : '';
@@ -2317,6 +2353,7 @@
     const idx = DATA.expense.findIndex(x=>x.id === id);
     if(idx === -1) return;
 
+    const editExpForWhomList = getSelectedValues(document.getElementById('edit-exp-forwhom'));
     const updated = {
       id,
       date: document.getElementById('edit-exp-date').value,
@@ -2324,7 +2361,8 @@
       category: document.getElementById('edit-exp-category').value,
       mode: segVal('edit-exp-mode'),
       person: document.getElementById('edit-exp-person').value,
-      forWhom: document.getElementById('edit-exp-forwhom').value,
+      forWhom: editExpForWhomList.join(', '),
+      forWhomList: editExpForWhomList,
       desc: document.getElementById('edit-exp-desc').value.trim()
     };
     if(updated.amount <= 0) return;
@@ -2610,7 +2648,19 @@
 
   function matchesForWhomFilter(e){
     if(dashboardForWhomFilter === 'all') return true;
-    return e.forWhom === dashboardForWhomFilter;
+    return getForWhomList(e).includes(dashboardForWhomFilter);
+  }
+
+  // When a specific "for whom" name is selected and an entry is split between
+  // more than one person, only that person's equal share should count toward
+  // the filtered totals — the entry itself still reads as a single line item
+  // everywhere else (feed, "All" totals, etc). Returns the entry unchanged
+  // outside that specific case.
+  function forWhomSharedEntry(e){
+    if(dashboardForWhomFilter === 'all') return e;
+    const list = getForWhomList(e);
+    if(list.length <= 1) return e;
+    return Object.assign({}, e, { amount: e.amount / list.length });
   }
 
   function renderForWhomFilterOptions(){
@@ -3007,7 +3057,7 @@
     // just money moved between your own accounts) are left out of every total,
     // chart, and category table below — see the Contra entry check section.
     const incEntries = DATA.income.filter(e=>inRange(e.date, from, to) && isCountableIncome(e) && matchesPersonFilter(e));
-    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to) && matchesPersonFilter(e) && matchesForWhomFilter(e) && !e.isContra);
+    const expEntries = DATA.expense.filter(e=>inRange(e.date, from, to) && matchesPersonFilter(e) && matchesForWhomFilter(e) && !e.isContra).map(forWhomSharedEntry);
 
     const totalIncome = incEntries.reduce((s,e)=>s+e.amount,0);
     const totalExpense = expEntries.reduce((s,e)=>s+e.amount,0);
@@ -3527,7 +3577,7 @@
   const forWhomMgrNewInput = document.getElementById('forwhom-mgr-new-input');
 
   function forWhomEntryCount(name){
-    return DATA.expense.filter(e => e.forWhom === name).length;
+    return DATA.expense.filter(e => getForWhomList(e).includes(name)).length;
   }
 
   function showForWhomMgrMsg(text){
@@ -3620,7 +3670,7 @@
     if(exists){ showForWhomMgrMsg('That name already exists.'); return; }
     forWhomPeopleList.push(name);
     await saveForWhomPeopleList();
-    renderForWhomSelect(name);
+    renderForWhomSelect([name]);
     renderForWhomFilterOptions();
     forWhomMgrNewInput.value = '';
     showForWhomMgrMsg('');
@@ -3989,6 +4039,8 @@
           <input type="number" class="cne-amount" min="0" step="0.01" value="${e.amount}">
           <div class="seg cne-mode"><button type="button" data-val="Bank" class="active">Bank</button><button type="button" data-val="Cash">Cash</button></div>
           <input type="text" class="cne-desc" placeholder="${oppositeType === 'expense' ? 'Description' : 'Note (optional)'}">
+          ${oppositeType === 'expense' ? `<select class="cne-forwhom" multiple size="3">${forWhomPeopleList.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select>
+          <div class="field-hint">For whom (optional) — select several to split equally between them.</div>` : ''}
         </div>
         <button type="button" class="pending-update-btn contra-resolve-btn" data-type="${type}" data-id="${e.id}">Confirm match</button>
       </div>
@@ -4053,12 +4105,14 @@
         if(!matchId){
           const amount = parseFloat(row.querySelector('.cne-amount').value) || 0;
           if(amount <= 0){ alert('Enter a valid amount, or pick an existing entry to match instead.'); return; }
+          const forWhomSel = row.querySelector('.cne-forwhom');
           newEntryData = {
             date: row.querySelector('.cne-date').value || todayISO(),
             category: row.querySelector('.cne-category').value,
             amount,
             mode: row.querySelector('.cne-mode button.active').dataset.val,
-            desc: row.querySelector('.cne-desc').value.trim()
+            desc: row.querySelector('.cne-desc').value.trim(),
+            forWhomList: forWhomSel ? getSelectedValues(forWhomSel) : []
           };
         }
 
@@ -4102,7 +4156,12 @@
         mode: newEntryData.mode,
         person: pendingEntry.person || ''
       };
-      if(oppositeType === 'expense'){ counterpart.desc = newEntryData.desc || ''; counterpart.forWhom = ''; }
+      if(oppositeType === 'expense'){
+        counterpart.desc = newEntryData.desc || '';
+        const fwList = Array.isArray(newEntryData.forWhomList) ? newEntryData.forWhomList : [];
+        counterpart.forWhomList = fwList;
+        counterpart.forWhom = fwList.join(', ');
+      }
       else { counterpart.note = newEntryData.desc || ''; }
     }
 
