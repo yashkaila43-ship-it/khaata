@@ -166,8 +166,6 @@
   .field{margin-bottom:15px;}
   .field label{display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px; letter-spacing:.02em;}
   .field-hint{font-size:11px; color:var(--muted); margin-top:5px; line-height:1.4;}
-  select[multiple]{padding:6px !important; height:auto;}
-  select[multiple] option{padding:6px 8px; border-radius:6px;}
   .field input[type="text"], .field input[type="number"], .field input[type="date"], .field select, .field textarea{
     width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:9px; background:var(--paper);
     font-family:'Inter',sans-serif; font-size:16px; color:var(--ink); outline:none;
@@ -181,6 +179,57 @@
   }
   .field textarea{resize:vertical; min-height:44px; font-family:'Inter',sans-serif;}
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--ink); background:var(--surface); box-shadow:0 0 0 4px rgba(33,31,27,0.06);}
+
+  /* ---------- Custom multiselect ("For whom") — replaces the native <select multiple> ---------- */
+  .msel{position:relative; width:100%;}
+  .msel-control{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:8px;
+    min-height:42px; padding:8px 10px; border:1.5px solid var(--line); border-radius:9px;
+    background:var(--paper); cursor:pointer; box-sizing:border-box;
+    transition:border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  .msel-control:hover{border-color:#D8D0BC;}
+  .msel-control:focus{outline:none;}
+  .msel-control:focus-visible{outline:2px solid var(--navy); outline-offset:2px;}
+  .msel.open .msel-control{border-color:var(--ink); background:var(--surface); box-shadow:0 0 0 4px rgba(33,31,27,0.06);}
+  .msel-chips{display:flex; flex-wrap:wrap; gap:6px; flex:1; min-width:0; padding-top:1px;}
+  .msel-placeholder{font-size:14px; color:var(--muted); line-height:1.4; padding:2px 0;}
+  .msel-chip{
+    display:inline-flex; align-items:center; gap:5px; background:var(--navy-soft); color:var(--navy);
+    font-size:12.5px; font-weight:600; padding:4px 6px 4px 10px; border-radius:20px; line-height:1.1;
+    animation:msChipIn .18s var(--ease);
+  }
+  @keyframes msChipIn{ from{opacity:0; transform:scale(.85);} to{opacity:1; transform:scale(1);} }
+  .msel-chip-x{
+    background:none; border:none; color:var(--navy); opacity:.6; cursor:pointer; font-size:15px; line-height:1;
+    padding:0 1px; display:flex; align-items:center; transition:opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  }
+  .msel-chip-x:hover{opacity:1; transform:scale(1.15);}
+  .msel-caret{flex-shrink:0; color:var(--muted); margin-top:3px; transition:transform var(--dur) var(--ease), color var(--dur) var(--ease);}
+  .msel.open .msel-caret{transform:rotate(180deg); color:var(--ink);}
+  .msel-dropdown{
+    display:none; position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:25;
+    background:var(--surface); border:1.5px solid var(--line); border-radius:10px; box-shadow:var(--shadow-lift);
+    padding:5px; max-height:216px; overflow-y:auto;
+    opacity:0; transform:translateY(-4px);
+  }
+  .msel.open .msel-dropdown{display:block; animation:suggestIn .18s var(--ease) forwards;}
+  .msel-option{
+    display:flex; align-items:center; gap:10px; padding:8px 9px; border-radius:7px; cursor:pointer;
+    font-size:13.5px; color:var(--ink); transition:background var(--dur-fast) var(--ease);
+  }
+  .msel-option:hover{background:var(--line-soft);}
+  .msel-check{
+    width:16px; height:16px; border-radius:5px; border:1.5px solid var(--line); flex-shrink:0; position:relative; box-sizing:border-box;
+    transition:background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  }
+  .msel-option.selected .msel-check{background:var(--ink); border-color:var(--ink);}
+  .msel-option.selected .msel-check::after{
+    content:''; position:absolute; left:4px; top:1px; width:4px; height:8px;
+    border:solid var(--paper); border-width:0 2px 2px 0; transform:rotate(45deg);
+  }
+  .msel-option.selected{color:var(--ink); font-weight:600;}
+  .msel-empty{padding:10px 9px; font-size:12.5px; color:var(--muted);}
   .amount-field{position:relative;}
   .amount-field .rupee{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); font-family:'Inter Tight',sans-serif; font-weight:600; font-size:14px; pointer-events:none; line-height:1; transition:color var(--dur) var(--ease);}
   .amount-field input:focus ~ .rupee, .amount-field .rupee{}
@@ -965,7 +1014,7 @@
           </div>
           <div class="field">
             <label>For whom <button type="button" class="pencil-btn" id="manage-people-btn-exp-forwhom" title="Add, rename or remove names">✎</button></label>
-            <select id="exp-forwhom" multiple size="4"></select>
+            <div class="msel" id="exp-forwhom" data-placeholder="Select for whom…"></div>
             <div class="field-hint">Select one, or select several to split this amount equally between them (only when the dashboard is filtered to one of them).</div>
           </div>
           <div class="field">
@@ -1318,7 +1367,7 @@
         </div>
         <div class="field">
           <label>For whom</label>
-          <select id="edit-exp-forwhom" multiple size="4"></select>
+          <div class="msel" id="edit-exp-forwhom" data-placeholder="Select for whom…"></div>
           <div class="field-hint">Select one, or select several to split this amount equally between them (only when the dashboard is filtered to one of them).</div>
         </div>
         <div class="field">
@@ -1618,13 +1667,121 @@
     try{ localStorage.setItem(FORWHOM_PEOPLE_KEY, JSON.stringify(forWhomPeopleList)); }
     catch(e){ console.error('Saving for-whom people failed', e); }
   }
-  // ---------- Multi-select helpers for "For whom" (expense split-between-people) ----------
-  function getSelectedValues(sel){
-    return Array.from(sel.selectedOptions).map(o=>o.value);
+  // ---------- Custom multiselect ("For whom" — replaces the native <select multiple>) ----------
+  // A container (any element carrying the .msel class / a "msel" id) is turned into a
+  // chip + checkbox-dropdown widget. State lives on the element itself (container._msValues,
+  // a Set of selected values; container._msOptions, the list of {value,label} choices) so the
+  // rest of the app can keep treating these containers as opaque "selects" via
+  // getSelectedValues()/setSelectedValues() below — nothing else needs to know it isn't a
+  // real <select> anymore.
+  function initMultiSelect(container){
+    if(!container || container._msInit) return container;
+    container._msInit = true;
+    container._msValues = new Set();
+    container._msOptions = [];
+    container.classList.add('msel');
+    container.innerHTML = `
+      <div class="msel-control" tabindex="0" role="button" aria-haspopup="listbox">
+        <div class="msel-chips"><span class="msel-placeholder"></span></div>
+        <svg class="msel-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="msel-dropdown" role="listbox"></div>
+    `;
+    const control = container.querySelector('.msel-control');
+
+    function toggleOpen(force){
+      const open = typeof force === 'boolean' ? force : !container.classList.contains('open');
+      if(open) document.querySelectorAll('.msel.open').forEach(o=>{ if(o!==container) o.classList.remove('open'); });
+      container.classList.toggle('open', open);
+    }
+    control.addEventListener('click', (e)=>{ e.stopPropagation(); toggleOpen(); });
+    control.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleOpen(); }
+      else if(e.key === 'Escape'){ toggleOpen(false); }
+    });
+    document.addEventListener('click', (e)=>{ if(!container.contains(e.target)) toggleOpen(false); });
+
+    container._msRenderChips = function(){
+      const chipsWrap = container.querySelector('.msel-chips');
+      const values = Array.from(container._msValues);
+      if(values.length === 0){
+        chipsWrap.innerHTML = `<span class="msel-placeholder">${escapeHtml(container.dataset.placeholder || 'Select…')}</span>`;
+        return;
+      }
+      chipsWrap.innerHTML = values.map(v=>{
+        const opt = container._msOptions.find(o=>o.value===v);
+        const label = opt ? opt.label : v;
+        return `<span class="msel-chip" data-value="${escapeHtml(v)}">${escapeHtml(label)}<button type="button" class="msel-chip-x" data-value="${escapeHtml(v)}" aria-label="Remove ${escapeHtml(label)}">&times;</button></span>`;
+      }).join('');
+      chipsWrap.querySelectorAll('.msel-chip-x').forEach(btn=>{
+        btn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          container._msValues.delete(btn.dataset.value);
+          container._msSync();
+        });
+      });
+    };
+
+    container._msRenderOptions = function(){
+      const dropdown = container.querySelector('.msel-dropdown');
+      if(container._msOptions.length === 0){
+        dropdown.innerHTML = '<div class="msel-empty">No names yet.</div>';
+        return;
+      }
+      dropdown.innerHTML = container._msOptions.map(o=>{
+        const sel = container._msValues.has(o.value) ? ' selected' : '';
+        return `<div class="msel-option${sel}" data-value="${escapeHtml(o.value)}" role="option" aria-selected="${sel ? 'true' : 'false'}">
+          <span class="msel-check"></span><span class="msel-opt-label">${escapeHtml(o.label)}</span>
+        </div>`;
+      }).join('');
+      dropdown.querySelectorAll('.msel-option').forEach(row=>{
+        row.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          const v = row.dataset.value;
+          if(container._msValues.has(v)) container._msValues.delete(v);
+          else container._msValues.add(v);
+          container._msSync();
+        });
+      });
+    };
+
+    container._msSync = function(){
+      container._msRenderChips();
+      container._msRenderOptions();
+      container.dispatchEvent(new Event('change'));
+    };
+
+    return container;
   }
-  function setSelectedValues(sel, list){
+
+  // Rebuilds the option list for a multiselect (e.g. when the "for whom" people list
+  // changes) and reapplies whichever of the given values are still valid options.
+  function setMultiSelectOptions(container, optionList, values){
+    initMultiSelect(container);
+    const keep = values !== undefined ? values : Array.from(container._msValues);
+    container._msOptions = (optionList || []).map(p=>({value:p, label:p}));
+    const validValues = new Set((optionList || []));
+    container._msValues = new Set((keep || []).filter(v=>validValues.has(v)));
+    container._msSync();
+  }
+
+  function getSelectedValues(container){
+    if(!container) return [];
+    if(container._msInit) return Array.from(container._msValues);
+    // Fallback, kept for safety in case this is ever pointed at a plain native select.
+    return Array.from(container.selectedOptions || []).map(o=>o.value);
+  }
+  function setSelectedValues(container, list){
+    if(!container) return;
+    if(container._msInit || container.classList.contains('msel')){
+      initMultiSelect(container);
+      const validValues = new Set(container._msOptions.map(o=>o.value));
+      container._msValues = new Set((list || []).filter(v=>validValues.has(v)));
+      container._msSync();
+      return;
+    }
     const set = new Set(list || []);
-    Array.from(sel.options).forEach(o=>{ o.selected = set.has(o.value); });
+    Array.from(container.options).forEach(o=>{ o.selected = set.has(o.value); });
   }
   // Reads the "who this expense is for" as an array regardless of whether the
   // entry predates the multi-select feature (forWhom string only) or has an
@@ -1638,8 +1795,7 @@
     const sel = document.getElementById('exp-forwhom');
     if(!sel) return;
     const cur = preferredList || getSelectedValues(sel);
-    sel.innerHTML = forWhomPeopleList.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
-    setSelectedValues(sel, cur);
+    setMultiSelectOptions(sel, forWhomPeopleList, cur);
   }
   loadForWhomPeopleList();
   renderForWhomSelect();
@@ -2197,7 +2353,7 @@
     const peopleOpts = peopleList.map(p=>`<option>${escapeHtml(p)}</option>`).join('');
     document.getElementById('edit-inc-person').innerHTML = peopleOpts;
     document.getElementById('edit-exp-person').innerHTML = peopleOpts;
-    document.getElementById('edit-exp-forwhom').innerHTML = forWhomPeopleList.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    setMultiSelectOptions(document.getElementById('edit-exp-forwhom'), forWhomPeopleList, []);
   }
 
   // Same field-visibility rules as the add form, but never resets a value on its
@@ -4010,14 +4166,77 @@
       .sort((a,b)=> Math.abs(a.amount - pendingEntry.amount) - Math.abs(b.amount - pendingEntry.amount));
   }
 
+  // Builds the "write a new entry instead" fields for a contra-pending row —
+  // this mirrors the real Income/Expense entry form field-for-field (same
+  // fields, same conditional show/hide, same required-ness), the only
+  // difference being "With whom"/"By whom" is fixed to the pending entry's
+  // person and shown as a disabled, non-editable field instead of a select.
+  function renderContraNewEntryFields(oppositeType, e){
+    const personDisplay = `<div class="field cne-fixed-person-field">
+        <label>${oppositeType === 'income' ? 'With whom' : 'By whom'}</label>
+        <input type="text" class="cne-fixed-person" value="${escapeHtml(e.person || '—')}" disabled>
+      </div>`;
+
+    if(oppositeType === 'expense'){
+      const catOpts = expenseCategories.map(c=> `<option>${escapeHtml(c)}</option>`).join('');
+      return `
+        <div class="field"><label>Date</label><input type="date" class="cne-date" value="${todayISO()}" required></div>
+        <div class="field"><label>Amount</label><div class="amount-field"><span class="rupee">₹</span><input type="number" class="cne-amount" min="0" step="0.01" placeholder="0.00" value="${e.amount}" required></div></div>
+        <div class="field"><label>Description</label>
+          <div class="desc-autocomplete">
+            <textarea class="cne-desc" placeholder="What was this for? e.g. milk, mint..." required autocomplete="off"></textarea>
+            <div class="desc-suggest cne-desc-suggest"></div>
+          </div>
+        </div>
+        <div class="field"><label>Category</label><select class="cne-category">${catOpts}</select></div>
+        <div class="field"><label>Paid via</label><div class="seg cne-mode"><button type="button" data-val="Bank" class="active">Bank</button><button type="button" data-val="Cash">Cash</button></div></div>
+        ${personDisplay}
+        <div class="field">
+          <label>For whom</label>
+          <div class="msel cne-forwhom" data-placeholder="Select for whom…"></div>
+          <div class="field-hint">Select one, or select several to split this amount equally between them.</div>
+        </div>`;
+    }
+
+    // oppositeType === 'income'
+    const catOpts = incomeCategories.map(c=> `<option>${escapeHtml(c)}</option>`).join('');
+    return `
+      <div class="field"><label>Date</label><input type="date" class="cne-inc-date" value="${todayISO()}" required></div>
+      <div class="field"><label>Category</label><select class="cne-inc-category">${catOpts}</select></div>
+      <div class="field cne-inc-other-person-field" style="display:none;">
+        <label>Other income — whose turn</label>
+        <input type="text" class="cne-inc-other-person" list="cne-other-income-list-${e.id}" placeholder="Search a name…" autocomplete="off">
+        <datalist id="cne-other-income-list-${e.id}">
+          <option value="Ishwarlal Kaila"><option value="Jayantilal Kaila"><option value="Ansoya Kaila">
+        </datalist>
+      </div>
+      <div class="field cne-inc-received-timing-field" style="display:none;">
+        <label>Receipt status</label>
+        <div class="seg cne-inc-received-timing"><button type="button" data-val="now" class="active">Received now</button><button type="button" data-val="later">Will receive later</button></div>
+      </div>
+      <div class="field"><label>Amount</label><div class="amount-field"><span class="rupee">₹</span><input type="number" class="cne-inc-amount" min="0" step="0.01" placeholder="0.00" value="${e.amount}" required></div></div>
+      <div class="field cne-inc-mode-field">
+        <label>Received in</label>
+        <div class="seg cne-mode"><button type="button" data-val="Bank" class="active">Bank</button><button type="button" data-val="Cash">Cash</button></div>
+      </div>
+      <div class="field cne-inc-bank-receipt-field" style="display:none;">
+        <label>Received via</label>
+        <div class="seg cne-inc-bank-receipt"><button type="button" data-val="Cheque" class="active">Cheque</button><button type="button" data-val="Cash Deposit">Cash Deposit</button></div>
+      </div>
+      <div class="field cne-inc-credited-field" style="display:none;">
+        <label>Credited to account?</label>
+        <div class="seg cne-inc-credited"><button type="button" data-val="yes" class="active">Yes</button><button type="button" data-val="no">No</button></div>
+      </div>
+      ${personDisplay}
+      <div class="field"><label>Note (optional)</label><input type="text" class="cne-inc-note" placeholder="e.g. July salary, Diwali bonus..."></div>`;
+  }
+
   function renderContraPendingRow(type, e){
     const oppositeType = type === 'income' ? 'expense' : 'income';
     const oppLabel = oppositeType === 'income' ? 'income' : 'expense';
     const whomLabel = type === 'income' ? 'With' : 'By';
     const candidates = getContraMatchCandidates(e, oppositeType);
     const candOpts = candidates.map(c=> `<option value="${c.id}">${fmtINR(c.amount)} · ${escapeHtml(c.category)} · ${fmtDate(c.date)}</option>`).join('');
-    const catList = oppositeType === 'income' ? incomeCategories : expenseCategories;
-    const catOpts = catList.map(c=> `<option>${escapeHtml(c)}</option>`).join('');
     const detailBit = e.note || e.desc ? ' · '+escapeHtml(e.note || e.desc) : '';
     return `<div class="pending-row contra-pending-row" data-type="${type}" data-id="${e.id}">
       <div class="pending-row-top">
@@ -4032,19 +4251,123 @@
           <option value="">— write a new entry instead —</option>
           ${candOpts}
         </select>
-        <div class="eyebrow">…or write a new ${oppLabel} entry (with ${escapeHtml(e.person || '—')} — fixed)</div>
-        <div class="contra-new-fields" data-type="${type}" data-id="${e.id}">
-          <input type="date" class="cne-date" value="${todayISO()}">
-          <select class="cne-category">${catOpts}</select>
-          <input type="number" class="cne-amount" min="0" step="0.01" value="${e.amount}">
-          <div class="seg cne-mode"><button type="button" data-val="Bank" class="active">Bank</button><button type="button" data-val="Cash">Cash</button></div>
-          <input type="text" class="cne-desc" placeholder="${oppositeType === 'expense' ? 'Description' : 'Note (optional)'}">
-          ${oppositeType === 'expense' ? `<select class="cne-forwhom" multiple size="3">${forWhomPeopleList.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}</select>
-          <div class="field-hint">For whom (optional) — select several to split equally between them.</div>` : ''}
+        <div class="eyebrow">…or write a new ${oppLabel} entry (${whomLabel.toLowerCase()} whom fixed to ${escapeHtml(e.person || '—')})</div>
+        <div class="contra-new-fields" data-type="${type}" data-id="${e.id}" data-opposite="${oppositeType}">
+          ${renderContraNewEntryFields(oppositeType, e)}
         </div>
         <button type="button" class="pending-update-btn contra-resolve-btn" data-type="${type}" data-id="${e.id}">Confirm match</button>
       </div>
     </div>`;
+  }
+
+  // Wires up the same conditional field logic as the real Income entry form
+  // (Other Income turn field, receipt timing, Salary bank-receipt/credited-to-
+  // account fields) but scoped to a single contra-pending row's own elements,
+  // since several rows with independent state can be open in the list at once.
+  function wireContraIncomeFields(row){
+    const catSel = row.querySelector('.cne-inc-category');
+    if(!catSel) return;
+    const otherPersonField = row.querySelector('.cne-inc-other-person-field');
+    const otherPersonInput = row.querySelector('.cne-inc-other-person');
+    const timingField = row.querySelector('.cne-inc-received-timing-field');
+    const timingSeg = row.querySelector('.cne-inc-received-timing');
+    const modeField = row.querySelector('.cne-inc-mode-field');
+    const modeSeg = row.querySelector('.cne-mode');
+    const creditedField = row.querySelector('.cne-inc-credited-field');
+    const creditedSeg = row.querySelector('.cne-inc-credited');
+    const bankReceiptField = row.querySelector('.cne-inc-bank-receipt-field');
+    const bankReceiptSeg = row.querySelector('.cne-inc-bank-receipt');
+
+    const segValLocal = (seg)=> seg.querySelector('button.active').dataset.val;
+    const resetSeg = (seg, defVal)=> seg.querySelectorAll('button').forEach(b=> b.classList.toggle('active', b.dataset.val === defVal));
+
+    function syncOtherIncomeFieldsVisibility(){
+      const isOther = catSel.value === 'Other Income';
+      const personVal = otherPersonInput.value.trim();
+      const isJayantilal = isOther && personVal === OTHER_INCOME_OWNER;
+      timingField.style.display = isJayantilal ? '' : 'none';
+      let showModeAndWhom;
+      if(!isOther) showModeAndWhom = true;
+      else if(isJayantilal) showModeAndWhom = segValLocal(timingSeg) === 'now';
+      else showModeAndWhom = false;
+      modeField.style.display = showModeAndWhom ? '' : 'none';
+      const fixedPersonField = row.querySelector('.cne-fixed-person-field');
+      if(fixedPersonField) fixedPersonField.style.display = showModeAndWhom ? '' : 'none';
+      if(!showModeAndWhom) syncCreditedFieldVisibility();
+    }
+
+    function syncOtherPersonField(){
+      const show = catSel.value === 'Other Income';
+      otherPersonField.style.display = show ? '' : 'none';
+      otherPersonInput.value = show ? nextOtherIncomeTurn() : '';
+      resetSeg(timingSeg, 'now');
+      syncOtherIncomeFieldsVisibility();
+    }
+
+    function syncCreditedFieldVisibility(){
+      const isSalary = catSel.value === 'Salary';
+      const isBank = segValLocal(modeSeg) === 'Bank';
+      const show = isSalary && isBank;
+      creditedField.style.display = show ? '' : 'none';
+      if(!show) resetSeg(creditedSeg, 'yes');
+      bankReceiptField.style.display = show ? '' : 'none';
+      if(!show) resetSeg(bankReceiptSeg, 'Cheque');
+    }
+
+    catSel.addEventListener('change', syncOtherPersonField);
+    catSel.addEventListener('change', syncCreditedFieldVisibility);
+    otherPersonInput.addEventListener('input', ()=>{ resetSeg(timingSeg, 'now'); syncOtherIncomeFieldsVisibility(); });
+    timingSeg.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        timingSeg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        syncOtherIncomeFieldsVisibility();
+      });
+    });
+    modeSeg.querySelectorAll('button').forEach(b=> b.addEventListener('click', syncCreditedFieldVisibility));
+
+    syncOtherPersonField();
+    syncCreditedFieldVisibility();
+  }
+
+  // Mirrors the real expense form's description -> category autocomplete,
+  // scoped to one row's own description field/suggestion box.
+  function wireContraDescAutocomplete(row){
+    const descInput = row.querySelector('.cne-desc');
+    const suggestBox = row.querySelector('.cne-desc-suggest');
+    const catSelect = row.querySelector('.cne-category');
+    if(!descInput || !suggestBox) return;
+    const hide = ()=>{ suggestBox.innerHTML = ''; suggestBox.classList.remove('show'); };
+    function render(query){
+      const q = query.trim().toLowerCase();
+      if(!q){ hide(); return; }
+      const map = getDescCategoryMap();
+      const matches = Object.values(map)
+        .filter(v=> v.original.toLowerCase().includes(q))
+        .sort((a,b)=> (b.lastDate||'').localeCompare(a.lastDate||''))
+        .slice(0, 8);
+      if(matches.length === 0){ hide(); return; }
+      suggestBox.innerHTML = matches.map(m=>{
+        const cat = bestCategoryFor(m);
+        return `<div class="desc-suggest-item" data-desc="${escapeHtml(m.original)}" data-cat="${escapeHtml(cat||'')}">
+          <span class="ds-text">${escapeHtml(m.original)}</span>
+          ${cat ? `<span class="ds-cat">${escapeHtml(cat)}</span>` : ''}
+        </div>`;
+      }).join('');
+      suggestBox.classList.add('show');
+      suggestBox.querySelectorAll('.desc-suggest-item').forEach(item=>{
+        item.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          descInput.value = item.dataset.desc;
+          const cat = item.dataset.cat;
+          if(cat && catSelect && [...catSelect.options].some(o=>o.value === cat)) catSelect.value = cat;
+          hide();
+        });
+      });
+    }
+    descInput.addEventListener('input', (e)=> render(e.target.value));
+    descInput.addEventListener('focus', (e)=>{ if(e.target.value.trim()) render(e.target.value); });
+    descInput.addEventListener('blur', ()=> setTimeout(hide, 150));
   }
 
   function renderContraPendingList(){
@@ -4060,13 +4383,25 @@
     }
     contraPendingList.innerHTML = rows.map(r=> renderContraPendingRow(r.type, r.e)).join('');
 
-    contraPendingList.querySelectorAll('.cne-mode').forEach(seg=>{
+    contraPendingList.querySelectorAll('.cne-forwhom').forEach(el=>{
+      setMultiSelectOptions(el, forWhomPeopleList, []);
+    });
+
+    // Generic active-toggle for every segmented control in the new-entry
+    // fields (mode, receipt timing, bank-receipt type, credited-to-account) —
+    // conditional visibility on top of this is wired separately per row below.
+    contraPendingList.querySelectorAll('.contra-new-fields .seg').forEach(seg=>{
       seg.querySelectorAll('button').forEach(b=>{
         b.addEventListener('click', ()=>{
           seg.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
           b.classList.add('active');
         });
       });
+    });
+
+    contraPendingList.querySelectorAll('.contra-pending-row').forEach(row=>{
+      wireContraIncomeFields(row);
+      wireContraDescAutocomplete(row);
     });
 
     contraPendingList.querySelectorAll('.contra-match-select').forEach(sel=>{
@@ -4101,19 +4436,56 @@
         const sel = row.querySelector('.contra-match-select');
         const matchId = sel.value;
 
+        const oppositeTypeForRow = row.querySelector('.contra-new-fields').dataset.opposite;
         let newEntryData = null;
         if(!matchId){
-          const amount = parseFloat(row.querySelector('.cne-amount').value) || 0;
-          if(amount <= 0){ alert('Enter a valid amount, or pick an existing entry to match instead.'); return; }
-          const forWhomSel = row.querySelector('.cne-forwhom');
-          newEntryData = {
-            date: row.querySelector('.cne-date').value || todayISO(),
-            category: row.querySelector('.cne-category').value,
-            amount,
-            mode: row.querySelector('.cne-mode button.active').dataset.val,
-            desc: row.querySelector('.cne-desc').value.trim(),
-            forWhomList: forWhomSel ? getSelectedValues(forWhomSel) : []
-          };
+          if(oppositeTypeForRow === 'expense'){
+            // Same mandatory fields as the real expense entry form: date, amount, description, category.
+            const date = row.querySelector('.cne-date').value || todayISO();
+            const amount = parseFloat(row.querySelector('.cne-amount').value) || 0;
+            const desc = row.querySelector('.cne-desc').value.trim();
+            const category = row.querySelector('.cne-category').value;
+            if(amount <= 0){ alert('Enter a valid amount, or pick an existing entry to match instead.'); return; }
+            if(!desc){ alert('Description is required for a new expense entry.'); return; }
+            const forWhomSel = row.querySelector('.cne-forwhom');
+            newEntryData = {
+              date,
+              category,
+              amount,
+              mode: row.querySelector('.cne-mode button.active').dataset.val,
+              desc,
+              forWhomList: forWhomSel ? getSelectedValues(forWhomSel) : []
+            };
+          } else {
+            // Mirrors the real income entry form's submit logic (Other Income
+            // turn/timing, Salary bank-receipt/credited-to-account) exactly.
+            const date = row.querySelector('.cne-inc-date').value || todayISO();
+            const category = row.querySelector('.cne-inc-category').value;
+            const amount = parseFloat(row.querySelector('.cne-inc-amount').value) || 0;
+            if(amount <= 0){ alert('Enter a valid amount, or pick an existing entry to match instead.'); return; }
+            const isOther = category === 'Other Income';
+            const otherPersonInput = row.querySelector('.cne-inc-other-person');
+            const otherPerson = isOther ? (otherPersonInput.value.trim() || nextOtherIncomeTurn()) : null;
+            const isJayantilal = isOther && otherPerson === OTHER_INCOME_OWNER;
+            const timingSeg = row.querySelector('.cne-inc-received-timing');
+            const timing = isJayantilal ? timingSeg.querySelector('button.active').dataset.val : null;
+            const showModeAndWhom = !isOther || timing === 'now';
+            newEntryData = {
+              date,
+              category,
+              amount,
+              note: row.querySelector('.cne-inc-note').value.trim()
+            };
+            if(isOther) newEntryData.otherPerson = otherPerson;
+            if(showModeAndWhom){
+              newEntryData.mode = row.querySelector('.cne-mode button.active').dataset.val;
+            }
+            if(isJayantilal) newEntryData.pending = (timing === 'later');
+            if(category === 'Salary' && newEntryData.mode === 'Bank'){
+              newEntryData.bankReceiptType = row.querySelector('.cne-inc-bank-receipt button.active').dataset.val;
+              if(row.querySelector('.cne-inc-credited button.active').dataset.val === 'no') newEntryData.creditPending = true;
+            }
+          }
         }
 
         const pendingEntry = DATA[type].find(x=>x.id === id);
@@ -4152,17 +4524,27 @@
         id: uid(),
         date: newEntryData.date,
         category: newEntryData.category,
-        amount: newEntryData.amount,
-        mode: newEntryData.mode,
-        person: pendingEntry.person || ''
+        amount: newEntryData.amount
       };
       if(oppositeType === 'expense'){
+        counterpart.mode = newEntryData.mode;
+        counterpart.person = pendingEntry.person || '';
         counterpart.desc = newEntryData.desc || '';
         const fwList = Array.isArray(newEntryData.forWhomList) ? newEntryData.forWhomList : [];
         counterpart.forWhomList = fwList;
         counterpart.forWhom = fwList.join(', ');
+      } else {
+        // Income counterpart — mirrors the real income form's field set exactly.
+        counterpart.note = newEntryData.note || '';
+        if(newEntryData.otherPerson) counterpart.otherPerson = newEntryData.otherPerson;
+        if(newEntryData.mode){
+          counterpart.mode = newEntryData.mode;
+          counterpart.person = pendingEntry.person || '';
+        }
+        if(newEntryData.pending !== undefined) counterpart.pending = newEntryData.pending;
+        if(newEntryData.bankReceiptType) counterpart.bankReceiptType = newEntryData.bankReceiptType;
+        if(newEntryData.creditPending) counterpart.creditPending = true;
       }
-      else { counterpart.note = newEntryData.desc || ''; }
     }
 
     const pendingAmt = pendingEntry.amount;
